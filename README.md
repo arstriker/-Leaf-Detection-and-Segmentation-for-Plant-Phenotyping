@@ -44,6 +44,8 @@ pip install -r requirements.txt
 ```
 *(Note: If you have an NVIDIA GPU, you may want to install the CUDA-enabled version of PyTorch manually from the [PyTorch website](https://pytorch.org/) to accelerate model training).*
 
+Link for the dataset-  https://www.kaggle.com/datasets/asheniranga/leaf-disease-dataset-combination?select=image+data
+
 ### 3. Provide Model Weights
 Because deep learning models are large, the trained `.pth` structural weights file is not included in the repository. Provide your trained model named `disease_model.pth` in the root of the project directory.
 
