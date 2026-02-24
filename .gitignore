@@ -1,0 +1,28 @@
+# Environments
+venv/
+env/
+.venv/
+.env/
+
+# Datasets and Large Media
+image data/
+*.pth
+*.pt
+*.weights
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+phenotyping_results.db
+*.sqlite
+*.db
+
+# Streamlit
+.streamlit/
+
+# OS Files
+.DS_Store
+Thumbs.db

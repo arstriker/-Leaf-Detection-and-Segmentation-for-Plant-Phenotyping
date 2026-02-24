@@ -1,0 +1,44 @@
+Cassava___Bacterial Blight (CBB)
+Cassava___Brown Streak Disease (CBSD)
+Cassava___Green Mottle (CGM)
+Cassava___Healthy
+Cassava___Mosaic Disease (CMD)
+Rice___BrownSpot
+Rice___Healthy
+Rice___Hispa
+Rice___LeafBlast
+apple___apple scab
+apple___black rot
+apple___cedar apple rust
+apple___healthy
+cherry (including sour)___healthy
+cherry (including sour)___powdery mildew
+corn (maize)___cercospora leaf spot gray leaf spot
+corn (maize)___common rust
+corn (maize)___healthy
+corn (maize)___northern leaf blight
+grape___black rot
+grape___esca (black measles)
+grape___healthy
+grape___leaf blight (isariopsis leaf spot)
+orange___haunglongbing (citrus greening)
+peach___bacterial spot
+peach___healthy
+pepper, bell___bacterial spot
+pepper, bell___healthy
+potato___early blight
+potato___healthy
+potato___late blight
+squash___powdery mildew
+strawberry___healthy
+strawberry___leaf scorch
+tomato___bacterial spot
+tomato___early blight
+tomato___healthy
+tomato___late blight
+tomato___leaf mold
+tomato___septoria leaf spot
+tomato___spider mites two-spotted spider mite
+tomato___target spot
+tomato___tomato mosaic virus
+tomato___tomato yellow leaf curl virus
