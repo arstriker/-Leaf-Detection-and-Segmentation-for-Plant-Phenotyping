@@ -7,7 +7,7 @@ import pandas as pd
 
 # Import our custom modules
 from preprocess import (
-    grayscale_and_standardize, apply_clahe, extract_color_indices,
+    grayscale_and_standardize, apply_clahe, apply_color_clahe, extract_color_indices,
     extract_edges_and_texture, segment_leaf, extract_features
 )
 from model_inference import DiseaseClassifier
@@ -92,7 +92,7 @@ def main():
             with st.spinner("Processing image..."):
                 # Run preprocessing
                 gray, std_img = grayscale_and_standardize(img_np)
-                clahe = apply_clahe((std_img * 255).astype(np.uint8))
+                clahe = apply_color_clahe(img_np)
                 exg, exr, exg_vis, exr_vis = extract_color_indices(img_np)
                 edges, lbp, lbp_vis = extract_edges_and_texture(gray)
                 
@@ -100,7 +100,7 @@ def main():
                 p_col1, p_col2, p_col3, p_col4 = st.columns(4)
                 
                 with p_col1:
-                    st.image(clahe, caption="CLAHE (Enhanced Contrast)", use_container_width=True, channels="GRAY")
+                    st.image(clahe, caption="CLAHE (Color Enhanced)", use_container_width=True)
                 with p_col2:
                     st.image(exg_vis, caption="Excess Green (ExG)", use_container_width=True, channels="GRAY")
                 with p_col3:
