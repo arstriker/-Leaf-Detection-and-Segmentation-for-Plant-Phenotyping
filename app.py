@@ -44,6 +44,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 @st.cache_resource
 def load_models():
     # Placeholders for actual paths
@@ -54,6 +55,7 @@ def load_models():
     db = PhenotypeDatabase("phenotyping_results.db")
     
     return classifier, db
+
 
 def main():
     st.markdown("<h1 class='main-header'>Automated Leaf Detection and Phenotyping</h1>", unsafe_allow_html=True)
@@ -175,7 +177,6 @@ def main():
         # Display latest database entries
         st.subheader("Recent Database Records")
         try:
-             db = PhenotypeDatabase("phenotyping_results.db")
              records = db.get_all_reports()
              if records:
                  df_records = pd.DataFrame(records, columns=["ID", "Timestamp", "Disease Class", "Confidence", "Leaves Detected", "Traits JSON"])
@@ -184,6 +185,7 @@ def main():
                  st.write("No records yet.")
         except Exception as e:
              st.write("Database not initialized yet.")
+
 
 if __name__ == "__main__":
     main()
