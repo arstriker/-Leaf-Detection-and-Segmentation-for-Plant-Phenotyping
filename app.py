@@ -114,7 +114,7 @@ def main():
             st.subheader("3. Segmentation (PhenotyperCV / CV fallback)")
             
             with st.spinner("Segmenting..."):
-                mask = segment_leaf(img_np)
+                mask = segment_leaf(img_np, exg=exg)
                 segmented_leaf = cv2.bitwise_and(img_np, img_np, mask=mask)
                 
                 st.image(segmented_leaf, caption="Segmented Leaf", use_container_width=True)
@@ -125,7 +125,7 @@ def main():
             st.subheader("4. Phenotyping Report & Disease Classification")
             
             with st.spinner("Extracting traits and classifying disease..."):
-                traits = extract_features(img_np, mask)
+                traits = extract_features(img_np, mask, gray_image=gray, lbp=lbp)
                 disease_class, confidence, probs = classifier.classify(img_np)
                 
                 # Save to database (Assuming 1 leaf per frame for now)

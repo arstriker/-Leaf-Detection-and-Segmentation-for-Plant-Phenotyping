@@ -83,7 +83,7 @@ def extract_edges_and_texture(gray_image):
     
     return edges, lbp, lbp_vis
 
-def segment_leaf(image):
+def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background. Uses phenotypercv if available,
     otherwise uses Otsu thresholding on Excess Green (ExG) / Grayscale.
@@ -98,7 +98,8 @@ def segment_leaf(image):
     # Standard Computer Vision Fallback
     # 1. Convert to Lab color space. Leaf is usually very pronounced in 'a' and 'b' channels.
     # Alternatively, use ExG which is robust for green leaves.
-    exg, exr, exg_vis, exr_vis = extract_color_indices(image)
+    if exg is None:
+        exg, exr, exg_vis, exr_vis = extract_color_indices(image)
     
     # Threshold ExG using Otsu's method
     # Need to convert ExG to uint8 properly mapped to [0, 255]
@@ -126,7 +127,7 @@ def segment_leaf(image):
         
     return final_mask
 
-def extract_features(image, mask):
+def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
     Includes Shape, Size, Texture, Color.
@@ -172,8 +173,12 @@ def extract_features(image, mask):
         features['std_R'] = features['std_G'] = features['std_B'] = 0.0
 
     # --- Texture Features (LBP) ---
-    gray_image, _ = grayscale_and_standardize(image)
-    _, lbp, _ = extract_edges_and_texture(gray_image)
+    if gray_image is None or lbp is None:
+        if gray_image is None:
+            gray_image, _ = grayscale_and_standardize(image)
+        if lbp is None:
+            _, lbp, _ = extract_edges_and_texture(gray_image)
+
     lbp_masked = lbp[mask > 0]
     
     if len(lbp_masked) > 0:
