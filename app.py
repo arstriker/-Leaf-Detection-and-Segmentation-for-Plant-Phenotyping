@@ -126,7 +126,7 @@ def main():
             
             with st.spinner("Extracting traits and classifying disease..."):
                 traits = extract_features(img_np, mask)
-                disease_class, confidence, probs = classifier.classify(img_np)
+                disease_class, confidence, probs = classifier.classify(image)
                 
                 # Save to database (Assuming 1 leaf per frame for now)
                 db.save_report(disease_class, confidence, 1, traits)
