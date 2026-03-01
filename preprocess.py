@@ -2,13 +2,12 @@ import cv2
 import numpy as np
 from skimage.feature import local_binary_pattern
 from skimage.measure import regionprops, label
+from skimage.measure import regionprops, label
+from plantcv import plantcv as pcv
 
-# Try to import phenotypercv if it exists
-try:
-    import phenotypercv
-    PHENOTYPER_CV_AVAILABLE = True
-except ImportError:
-    PHENOTYPER_CV_AVAILABLE = False
+# Configure PlantCV globally
+pcv.params.debug = None
+
 
 
 def grayscale_and_standardize(image):
@@ -85,39 +84,35 @@ def extract_edges_and_texture(gray_image):
 
 def segment_leaf(image):
     """
-    Segments the leaf from the background. Uses phenotypercv if available,
-    otherwise uses Otsu thresholding on Excess Green (ExG) / Grayscale.
+    Segments the leaf from the background using PlantCV.
     Returns a binary mask (0 for background, 255 for leaf).
     """
-    if PHENOTYPER_CV_AVAILABLE:
-        # Fallback to custom logic if phenotypercv API is unknown.
-        # Assuming there is some segment function: phenotypercv.segment(image)
-        # For now, if someone installs it but we don't know the API, handle it gracefully.
-        pass
+    # 1. Convert to a colorspace that isolates green (e.g. LAB)
+    a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
+
+    # 2. Threshold the 'a' channel to separate leaf from background
+    # Green plants appear dark in the 'a' channel.
+    # We use an inverted auto threshold to get a white leaf on a black background
+    thresh = pcv.threshold.otsu(gray_img=a_channel, object_type='dark')
+
+    # 3. Clean up the mask
+    # Fills small holes within the leaf
+    mask = pcv.fill(bin_img=thresh, size=50)
+    
+    # Optional: clean up noise in the background
+    # mask = pcv.fill_holes(bin_img=mask)
+    
+    # 4. Find connected components (objects)
+    # This acts like finding the largest contours
+    labeled_mask, num_objects = pcv.create_labels(mask=mask)
         
-    # Standard Computer Vision Fallback
-    # 1. Convert to Lab color space. Leaf is usually very pronounced in 'a' and 'b' channels.
-    # Alternatively, use ExG which is robust for green leaves.
-    exg, exr, exg_vis, exr_vis = extract_color_indices(image)
-    
-    # Threshold ExG using Otsu's method
-    # Need to convert ExG to uint8 properly mapped to [0, 255]
-    exg_mapped = cv2.normalize(exg, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    
-    # Otsu thresholding
-    _, mask = cv2.threshold(exg_mapped, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    
-    # Refine mask using morphological operations
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
-    
-    # Keep only the largest connected component (assuming the leaf is the largest object)
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
-    
-    if num_labels > 1:
-        # sizes are in the last column of stats
-        # The 0th label is the background. Extract the max size among the others.
+    # Isolate the largest object
+    # If there are multiple parts we want the main leaf
+    if num_objects > 1:
+        # pcv.roi.multi doesn't easily return the largest by default
+        # But we can use standard OpenCV to pull out the largest blob 
+        # from PlantCV's clean mask
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
         largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
         final_mask = np.zeros_like(mask)
         final_mask[labels == largest_label] = 255
@@ -152,7 +147,7 @@ def extract_features(image, mask):
     features['eccentricity'] = leaf_prop.eccentricity
     features['solidity'] = leaf_prop.solidity
     features['extent'] = leaf_prop.extent
-    features['aspect_ratio'] = leaf_prop.major_axis_length / (leaf_prop.minor_axis_length + 1e-6)
+    features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
     img_masked = cv2.bitwise_and(image, image, mask=mask)
