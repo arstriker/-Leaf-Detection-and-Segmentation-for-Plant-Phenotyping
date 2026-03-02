@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoiding Redundant Image Type Conversions
+**Learning:** This codebase frequently converts between PIL Images and NumPy arrays depending on the underlying library (e.g., PyTorch vs OpenCV). `resnet_classifier.classify()` explicitly converts NumPy arrays back to PIL Images internally using `Image.fromarray(image)`. In Streamlit, `Image.open()` natively returns a PIL Image.
+**Action:** When invoking models or preprocessing functions, always trace back the image source. If the function ultimately requires a PIL Image and we already possess one from the upload step, pass it directly instead of its derived NumPy counterpart (`np.array(image)`) to save memory allocations and CPU cycles.
