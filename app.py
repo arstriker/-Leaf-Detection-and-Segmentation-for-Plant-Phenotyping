@@ -191,11 +191,13 @@ def main():
                 traits = extract_features(img_np, mask)
 
                 if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(img_np)
+                    # Bolt: YOLOv8 handles PIL Images gracefully. Passing the original PIL Image
+                    # instead of the NumPy array avoids redundant conversion overhead.
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 else:
-                    disease_class, confidence, probs = resnet_classifier.classify(
-                        img_np
-                    )
+                    # Bolt: ResNet classifier internally works with PIL Images. Passing the original
+                    # PIL Image directly avoids the overhead of converting the NumPy array back to PIL.
+                    disease_class, confidence, probs = resnet_classifier.classify(image)
 
                 # Save to database (Assuming 1 leaf per frame for now)
                 db.save_report(disease_class, confidence, 1, traits)
