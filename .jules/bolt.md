@@ -1,0 +1,3 @@
+## 2026-03-04 - Redundant Type Conversions in Model Inference
+**Learning:** The `DiseaseClassifier` and Ultralytics YOLOv8 natively handle PIL Images or automatically convert numpy arrays back to PIL Images inside their inference blocks. By default, the Streamlit frontend was casting the uploaded PIL Image to a numpy array, running CV operations, and then passing that *same* numpy array into the classifier, causing a redundant `PIL -> Numpy -> PIL` roundtrip that increases memory overhead and wastes CPU cycles.
+**Action:** Whenever passing image data between frontend handlers and backend neural network wrappers, check the model's native expected input type and preserve it directly if possible to avoid unnecessary casting costs.
