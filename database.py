@@ -63,7 +63,7 @@ class PhenotypeDatabase:
         conn.close()
         return rows
 
-    def get_recent_reports(self, limit=5):
+    def get_recent_reports(self, limit=5, include_traits=True):
         """
         Retrieves the most recent reports from the database up to the specified limit.
         Used to optimize frontend rendering by avoiding fetching all historical records into memory.
@@ -71,9 +71,12 @@ class PhenotypeDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
-        )
+        if include_traits:
+            query = "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?"
+        else:
+            query = "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?"
+
+        cursor.execute(query, (limit,))
         rows = cursor.fetchall()
 
         conn.close()
