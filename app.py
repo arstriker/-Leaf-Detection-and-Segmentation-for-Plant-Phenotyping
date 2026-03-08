@@ -190,12 +190,12 @@ def main():
             with st.spinner("Extracting traits and classifying disease..."):
                 traits = extract_features(img_np, mask)
 
+                # ⚡ Bolt Optimization: Pass the original PIL image directly to the classifiers
+                # instead of the NumPy array to prevent redundant double-conversions in the model inference backend
                 if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(img_np)
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 else:
-                    disease_class, confidence, probs = resnet_classifier.classify(
-                        img_np
-                    )
+                    disease_class, confidence, probs = resnet_classifier.classify(image)
 
                 # Save to database (Assuming 1 leaf per frame for now)
                 db.save_report(disease_class, confidence, 1, traits)
@@ -259,6 +259,8 @@ def main():
             # Re-use the already loaded db instance globally and use optimized backend query
             records = db.get_recent_reports(limit=5)
             if records:
+                # ⚡ Bolt Optimization: The Traits JSON column was removed from the backend query
+                # meaning we no longer allocate a massive dataframe memory block just to drop it here
                 df_records = pd.DataFrame(
                     records,
                     columns=[
@@ -267,11 +269,10 @@ def main():
                         "Disease Class",
                         "Confidence",
                         "Leaves Detected",
-                        "Traits JSON",
                     ],
                 )
                 # Remove redundant head(5) truncation as the database limits it for us
-                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
+                st.dataframe(df_records, hide_index=True)
             else:
                 st.write("No records yet.")
         except Exception as e:
