@@ -190,11 +190,12 @@ def main():
             with st.spinner("Extracting traits and classifying disease..."):
                 traits = extract_features(img_np, mask)
 
+                # Pass PIL image directly to classifiers to avoid double-conversion
                 if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(img_np)
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 else:
                     disease_class, confidence, probs = resnet_classifier.classify(
-                        img_np
+                        image
                     )
 
                 # Save to database (Assuming 1 leaf per frame for now)
@@ -267,11 +268,10 @@ def main():
                         "Disease Class",
                         "Confidence",
                         "Leaves Detected",
-                        "Traits JSON",
                     ],
                 )
                 # Remove redundant head(5) truncation as the database limits it for us
-                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
+                st.dataframe(df_records, hide_index=True)
             else:
                 st.write("No records yet.")
         except Exception as e:
