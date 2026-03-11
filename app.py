@@ -257,6 +257,8 @@ def main():
         st.subheader("Recent Database Records")
         try:
             # Re-use the already loaded db instance globally and use optimized backend query
+            # Bolt Optimization: Fetch explicitly defined columns.
+            # Omit fetching large 'traits_json' from DB to reduce memory and I/O overhead.
             records = db.get_recent_reports(limit=5)
             if records:
                 df_records = pd.DataFrame(
@@ -267,11 +269,10 @@ def main():
                         "Disease Class",
                         "Confidence",
                         "Leaves Detected",
-                        "Traits JSON",
                     ],
                 )
                 # Remove redundant head(5) truncation as the database limits it for us
-                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
+                st.dataframe(df_records, hide_index=True)
             else:
                 st.write("No records yet.")
         except Exception as e:
