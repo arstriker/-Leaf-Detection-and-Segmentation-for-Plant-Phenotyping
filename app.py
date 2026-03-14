@@ -190,12 +190,12 @@ def main():
             with st.spinner("Extracting traits and classifying disease..."):
                 traits = extract_features(img_np, mask)
 
+                # Bolt: Pass PIL image directly to avoid redundant PIL -> NumPy -> PIL conversions
+                # Both DiseaseClassifier and YOLOv8 natively handle PIL Images efficiently.
                 if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(img_np)
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 else:
-                    disease_class, confidence, probs = resnet_classifier.classify(
-                        img_np
-                    )
+                    disease_class, confidence, probs = resnet_classifier.classify(image)
 
                 # Save to database (Assuming 1 leaf per frame for now)
                 db.save_report(disease_class, confidence, 1, traits)

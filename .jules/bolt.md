@@ -1,0 +1,3 @@
+## 2024-05-24 - Redundant PIL to NumPy to PIL Conversion in inference pipeline
+**Learning:** PyTorch and YOLOv8 natively handle PIL Images extremely efficiently. Converting a PIL Image to NumPy array for preprocessing and then passing that NumPy array to the ML classifier causes the classifier to implicitly convert it back to a PIL image (via `Image.fromarray()`). This double-conversion adds unnecessary memory overhead and CPU cycles, acting as a performance bottleneck.
+**Action:** When working with ML models that expect PIL Images, always preserve and pass the original PIL Image directly from the frontend to the inference function rather than passing the NumPy array generated for OpenCV preprocessing.
