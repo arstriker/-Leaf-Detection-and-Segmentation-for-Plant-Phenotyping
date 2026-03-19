@@ -190,12 +190,14 @@ def main():
             with st.spinner("Extracting traits and classifying disease..."):
                 traits = extract_features(img_np, mask)
 
+                # Performance optimization: Pass the PIL image directly to the classifiers.
+                # PyTorch and YOLOv8 natively handle PIL images. Passing the NumPy array (img_np)
+                # causes the models to unnecessarily convert it back to a PIL image internally,
+                # wasting CPU cycles and memory.
                 if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(img_np)
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 else:
-                    disease_class, confidence, probs = resnet_classifier.classify(
-                        img_np
-                    )
+                    disease_class, confidence, probs = resnet_classifier.classify(image)
 
                 # Save to database (Assuming 1 leaf per frame for now)
                 db.save_report(disease_class, confidence, 1, traits)
