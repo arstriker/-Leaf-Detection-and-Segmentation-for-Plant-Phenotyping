@@ -269,11 +269,11 @@ def main():
                         "Disease Class",
                         "Confidence",
                         "Leaves Detected",
-                        "Traits JSON",
                     ],
                 )
                 # Remove redundant head(5) truncation as the database limits it for us
-                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
+                # Performance Optimization: `traits_json` is no longer fetched in the DB query, so no need to drop it here
+                st.dataframe(df_records, hide_index=True)
             else:
                 st.write("No records yet.")
         except Exception as e:
