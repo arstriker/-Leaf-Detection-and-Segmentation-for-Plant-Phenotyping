@@ -71,8 +71,11 @@ class PhenotypeDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Performance optimization: explicit select to avoid fetching the large
+        # traits_json column into memory when we only need summary data for the UI
         cursor.execute(
-            "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
         )
         rows = cursor.fetchall()
 
