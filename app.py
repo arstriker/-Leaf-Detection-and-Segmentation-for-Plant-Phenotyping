@@ -261,6 +261,7 @@ def main():
             # Re-use the already loaded db instance globally and use optimized backend query
             records = db.get_recent_reports(limit=5)
             if records:
+                # ⚡ Bolt Optimization: Database query only fetches necessary columns, avoiding large JSON payloads
                 df_records = pd.DataFrame(
                     records,
                     columns=[
@@ -269,11 +270,10 @@ def main():
                         "Disease Class",
                         "Confidence",
                         "Leaves Detected",
-                        "Traits JSON",
                     ],
                 )
-                # Remove redundant head(5) truncation as the database limits it for us
-                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
+                # Traits JSON is no longer fetched, avoiding redundant memory overhead and parsing
+                st.dataframe(df_records, hide_index=True)
             else:
                 st.write("No records yet.")
         except Exception as e:
