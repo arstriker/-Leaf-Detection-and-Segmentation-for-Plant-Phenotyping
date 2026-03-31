@@ -71,8 +71,11 @@ class PhenotypeDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Performance Optimization: Avoid SELECT * on tables with large JSON columns.
+        # Explicitly fetching only the required columns reduces memory allocation and I/O overhead.
         cursor.execute(
-            "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
         )
         rows = cursor.fetchall()
 
