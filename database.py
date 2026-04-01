@@ -71,8 +71,12 @@ class PhenotypeDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # ⚡ Bolt Optimization: Only SELECT required columns.
+        # Avoiding SELECT * prevents fetching the potentially large `traits_json`
+        # payload which is unused in the recent reports table, saving memory and I/O.
         cursor.execute(
-            "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected "
+            "FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
         )
         rows = cursor.fetchall()
 
