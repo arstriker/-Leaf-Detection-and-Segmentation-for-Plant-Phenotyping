@@ -1,3 +1,3 @@
-## 2025-02-12 - Redundant Image Conversions
-**Learning:** In the `Automated Leaf Detection and Phenotyping` app, PIL images were being converted to NumPy arrays for some tasks, and then those NumPy arrays were being passed into PyTorch and YOLOv8 models. Both PyTorch and YOLOv8 natively handle PIL images and implicitly convert NumPy arrays back to PIL format internally, creating a redundant double-conversion overhead that wastes CPU cycles and memory.
-**Action:** Always ensure that PIL images are preserved and passed directly to deep learning models like YOLOv8 and PyTorch to avoid unnecessary double-conversions when possible.
+## 2024-04-03 - [SQLite DB Optimization]
+**Learning:** Found that the traits_json column in the SQLite DB can get large, but the UI doesn't use it in `get_recent_reports`.
+**Action:** When creating a subset fetch for large datasets in SQLite, modify the SELECT query to explicitly skip large columns (like JSON blobs) instead of `SELECT *` to reduce I/O and memory overhead.

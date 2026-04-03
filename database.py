@@ -67,12 +67,13 @@ class PhenotypeDatabase:
         """
         Retrieves the most recent reports from the database up to the specified limit.
         Used to optimize frontend rendering by avoiding fetching all historical records into memory.
+        Optimized to explicitly select required columns and skip the large JSON blob to reduce I/O and memory overhead.
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
         )
         rows = cursor.fetchall()
 
