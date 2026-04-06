@@ -52,7 +52,7 @@ class PhenotypeDatabase:
 
     def get_all_reports(self):
         """
-        Retrieves all reports from the database.
+        Retrieves reports from the database, optionally limited to the most recent ones.
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()

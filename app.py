@@ -71,6 +71,7 @@ def load_models():
 
 
 
+
 def main():
     st.markdown(
         "<h1 class='main-header'>Automated Leaf Detection and Phenotyping</h1>",
@@ -162,7 +163,7 @@ def main():
 
             # 3. Segmentation and Detection
             st.subheader("3. Segmentation (PhenotyperCV / CV fallback)")
-            
+
             with st.spinner("Segmenting..."):
                 mask = segment_leaf(img_np, exg=exg)
             st.subheader("3. Segmentation (Powered by PlantCV)")
@@ -264,6 +265,8 @@ def main():
         # Display latest database entries
         st.subheader("Recent Database Records")
         try:
+            db = PhenotypeDatabase("phenotyping_results.db")
+            records = db.get_all_reports(limit=5)
             # Re-use the already loaded db instance globally and use optimized backend query
             records = db.get_recent_reports(limit=5)
             if records:
@@ -275,6 +278,10 @@ def main():
                         "Disease Class",
                         "Confidence",
                         "Leaves Detected",
+                        "Traits JSON",
+                    ],
+                )
+                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
                     ],
                 )
                 # Remove redundant head(5) truncation as the database limits it for us
