@@ -159,6 +159,10 @@ def main():
             st.divider()
 
             # 3. Segmentation and Detection
+            st.subheader("3. Segmentation (PhenotyperCV / CV fallback)")
+            
+            with st.spinner("Segmenting..."):
+                mask = segment_leaf(img_np, exg=exg)
             st.subheader("3. Segmentation (Powered by PlantCV)")
 
             with st.spinner("Segmenting and running Object Detection..."):
