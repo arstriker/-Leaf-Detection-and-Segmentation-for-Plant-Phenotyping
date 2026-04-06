@@ -6,6 +6,8 @@ env/
 
 # Datasets and Large Media
 image data/
+yolo_dataset/
+runs/
 *.pth
 *.pt
 *.weights
