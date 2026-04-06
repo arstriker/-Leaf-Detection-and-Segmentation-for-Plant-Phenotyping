@@ -54,6 +54,7 @@ st.markdown(
 )
 
 
+
 @st.cache_resource
 def load_models():
     # Placeholders for actual paths
@@ -67,6 +68,7 @@ def load_models():
     db = PhenotypeDatabase("phenotyping_results.db")
 
     return resnet_classifier, yolo_classifier, yolo_detector, db
+
 
 
 def main():
@@ -281,6 +283,7 @@ def main():
                 st.write("No records yet.")
         except Exception as e:
             st.write("Database not initialized yet.")
+
 
 
 if __name__ == "__main__":
