@@ -50,18 +50,32 @@ class PhenotypeDatabase:
         conn.commit()
         conn.close()
 
-    def get_all_reports(self, limit=None):
+    def get_all_reports(self):
         """
         Retrieves reports from the database, optionally limited to the most recent ones.
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        query = "SELECT * FROM phenotyping_report ORDER BY timestamp DESC"
-        if limit is not None:
-            query += f" LIMIT {int(limit)}"
+        cursor.execute("SELECT * FROM phenotyping_report ORDER BY timestamp DESC")
+        rows = cursor.fetchall()
 
-        cursor.execute(query)
+        conn.close()
+        return rows
+
+    def get_recent_reports(self, limit=5):
+        """
+        Retrieves the most recent reports from the database up to the specified limit.
+        Used to optimize frontend rendering by avoiding fetching all historical records into memory.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Optimization: Fetch only required columns to avoid loading the large 'traits_json' string into memory
+        cursor.execute(
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
+        )
         rows = cursor.fetchall()
 
         conn.close()
