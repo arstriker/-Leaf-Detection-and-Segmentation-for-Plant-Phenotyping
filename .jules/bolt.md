@@ -1,3 +1,3 @@
-## 2025-02-12 - Redundant Image Conversions
-**Learning:** In the `Automated Leaf Detection and Phenotyping` app, PIL images were being converted to NumPy arrays for some tasks, and then those NumPy arrays were being passed into PyTorch and YOLOv8 models. Both PyTorch and YOLOv8 natively handle PIL images and implicitly convert NumPy arrays back to PIL format internally, creating a redundant double-conversion overhead that wastes CPU cycles and memory.
-**Action:** Always ensure that PIL images are preserved and passed directly to deep learning models like YOLOv8 and PyTorch to avoid unnecessary double-conversions when possible.
+## 2024-05-23 - Optimizing NumPy Masking
+**Learning:** Using `cv2.bitwise_and` followed by boolean indexing (`mask > 0`) is inefficient because it creates a full-sized intermediate array (masked image). A more optimal way to extract pixels within a mask is to directly index the image array with the boolean mask: `pixels = image[mask > 0]`.
+**Action:** Use direct boolean indexing `image[mask > 0]` to extract pixels instead of `cv2.bitwise_and` when only the masked pixels are needed (e.g. for calculating mean/std).
