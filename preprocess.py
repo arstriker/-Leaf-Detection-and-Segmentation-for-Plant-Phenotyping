@@ -173,10 +173,13 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:,:,0][mask > 0]
-    G = img_masked[:,:,1][mask > 0]
-    B = img_masked[:,:,2][mask > 0]
+    # Performance Optimization: Extract pixels directly using boolean indexing
+    # This avoids allocating a full-sized intermediate array via cv2.bitwise_and,
+    # significantly reducing memory footprint and CPU cycles.
+    pixels = image[mask > 0]
+    R = pixels[:, 0] if len(pixels) > 0 else np.array([])
+    G = pixels[:, 1] if len(pixels) > 0 else np.array([])
+    B = pixels[:, 2] if len(pixels) > 0 else np.array([])
     
     if len(R) > 0:
         features['mean_R'] = float(np.mean(R))
