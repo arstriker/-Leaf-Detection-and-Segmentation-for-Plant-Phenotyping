@@ -1,3 +1,7 @@
 ## 2025-02-12 - Redundant Image Conversions
 **Learning:** In the `Automated Leaf Detection and Phenotyping` app, PIL images were being converted to NumPy arrays for some tasks, and then those NumPy arrays were being passed into PyTorch and YOLOv8 models. Both PyTorch and YOLOv8 natively handle PIL images and implicitly convert NumPy arrays back to PIL format internally, creating a redundant double-conversion overhead that wastes CPU cycles and memory.
 **Action:** Always ensure that PIL images are preserved and passed directly to deep learning models like YOLOv8 and PyTorch to avoid unnecessary double-conversions when possible.
+
+## 2025-02-13 - Redundant Intermediate Array Allocation via cv2.bitwise_and
+**Learning:** In `preprocess.py`, an unoptimized implementation of masking for color feature extraction utilized `cv2.bitwise_and(image, image, mask=mask)` to generate a full-sized masked intermediate image, from which pixel data was subsequently extracted using boolean indexing three times. This creates unnecessary memory pressure and burns CPU cycles by allocating a huge sparse array only to immediately sample valid elements out of it.
+**Action:** When extracting pixels from a target image according to a mask, always utilize direct multi-dimensional boolean indexing (`valid_pixels = image[mask > 0]`) to grab the elements in one shot, completely bypassing full-scale intermediate array allocation.
