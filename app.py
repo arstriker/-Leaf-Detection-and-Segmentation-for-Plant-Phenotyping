@@ -62,6 +62,10 @@ def load_models():
     yolov8_model = r"runs\classify\runs\classify\leaf_disease_model2\weights\best.pt"
     class_names = "class_names.txt"
 
+    classifier = DiseaseClassifier(disease_model, class_names_path=class_names)
+    db = PhenotypeDatabase("phenotyping_results.db")
+
+    return classifier, db
     resnet_classifier = DiseaseClassifier(disease_model, class_names_path=class_names)
     yolo_classifier = YOLOv8DiseaseClassifier(yolov8_model)
     yolo_detector = YOLOv8ObjectDetector("yolov8n.pt")  # Auto-downloads base model
@@ -73,12 +77,14 @@ def load_models():
 
 
 
+
 def main():
     st.markdown(
         "<h1 class='main-header'>Automated Leaf Detection and Phenotyping</h1>",
         unsafe_allow_html=True,
     )
 
+    classifier, db = load_models()
     resnet_classifier, yolo_classifier, yolo_detector, db = load_models()
 
     # Sidebar
@@ -173,6 +179,9 @@ def main():
                 mask = segment_leaf(img_np)
                 segmented_leaf = cv2.bitwise_and(img_np, img_np, mask=mask)
 
+                st.image(
+                    segmented_leaf, caption="Segmented Leaf", use_container_width=True
+                )
                 # Run YOLOv8 Object Detection on the segmented leaf
                 detected_leaf_img = yolo_detector.detect_and_draw(segmented_leaf)
 
@@ -196,6 +205,8 @@ def main():
             st.subheader("4. Phenotyping Report & Disease Classification")
 
             with st.spinner("Extracting traits and classifying disease..."):
+                traits = extract_features(img_np, mask, lbp=lbp)
+                disease_class, confidence, probs = classifier.classify(img_np)
                 traits = extract_features(img_np, mask)
 
                 # Performance optimization: Pass the PIL image directly to the classifiers.
@@ -266,6 +277,8 @@ def main():
         # Display latest database entries
         st.subheader("Recent Database Records")
         try:
+            db = PhenotypeDatabase("phenotyping_results.db")
+            records = db.get_all_reports()
              db = PhenotypeDatabase("phenotyping_results.db")
              # Optimization: Only fetch the top 5 records to save memory/time
              records = db.get_all_reports(limit=5)
@@ -290,6 +303,9 @@ def main():
                         "Leaves Detected",
                         "Traits JSON",
                     ],
+                )
+                st.dataframe(
+                    df_records.drop(columns=["Traits JSON"]).head(5), hide_index=True
                 )
                 st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
                     ],
