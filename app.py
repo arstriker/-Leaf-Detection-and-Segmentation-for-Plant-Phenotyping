@@ -209,6 +209,11 @@ def main():
                 disease_class, confidence, probs = classifier.classify(img_np)
                 traits = extract_features(img_np, mask)
 
+                # ⚡ Bolt Optimization: Pass the original PIL image directly to the classifiers
+                # instead of the NumPy array to prevent redundant double-conversions in the model inference backend
+                if model_option == "YOLOv8-cls (Fast & Modern)":
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
+                else:
                 # Optimization: Passing the PIL Image directly avoids redundant NumPy-to-PIL conversion overhead
                 if model_option == "YOLOv8-cls (Fast & Modern)":
                     disease_class, confidence, probs = yolo_classifier.classify(image)
@@ -314,6 +319,8 @@ def main():
             # Re-use the already loaded db instance globally and use optimized backend query
             records = db.get_recent_reports(limit=5, include_traits=False)
             if records:
+                # ⚡ Bolt Optimization: The Traits JSON column was removed from the backend query
+                # meaning we no longer allocate a massive dataframe memory block just to drop it here
                 df_records = pd.DataFrame(
                     records,
                     columns=[
