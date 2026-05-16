@@ -49,10 +49,27 @@ class PhenotypeDatabase:
 
         conn.commit()
         conn.close()
+        
+    def get_all_reports(self, limit=None):
+        """
+        Retrieves reports from the database, ordered by timestamp descending.
+
+        Args:
+            limit (int, optional): The maximum number of records to return.
+                                   If None, returns all records.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if limit:
+            cursor.execute('SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?', (limit,))
+        else:
+            cursor.execute('SELECT * FROM phenotyping_report ORDER BY timestamp DESC')
+
 
     def get_all_reports(self):
         """
-        Retrieves all reports from the database.
+        Retrieves reports from the database, optionally limited to the most recent ones.
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -71,8 +88,10 @@ class PhenotypeDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Optimization: Fetch only required columns to avoid loading the large 'traits_json' string into memory
         cursor.execute(
-            "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
         )
         rows = cursor.fetchall()
 
