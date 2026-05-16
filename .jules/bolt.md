@@ -1,3 +1,6 @@
 ## 2024-05-24 - Avoiding Redundant Image Type Conversions
 **Learning:** This codebase frequently converts between PIL Images and NumPy arrays depending on the underlying library (e.g., PyTorch vs OpenCV). `resnet_classifier.classify()` explicitly converts NumPy arrays back to PIL Images internally using `Image.fromarray(image)`. In Streamlit, `Image.open()` natively returns a PIL Image.
 **Action:** When invoking models or preprocessing functions, always trace back the image source. If the function ultimately requires a PIL Image and we already possess one from the upload step, pass it directly instead of its derived NumPy counterpart (`np.array(image)`) to save memory allocations and CPU cycles.
+## 2025-02-12 - Redundant Image Conversions
+**Learning:** In the `Automated Leaf Detection and Phenotyping` app, PIL images were being converted to NumPy arrays for some tasks, and then those NumPy arrays were being passed into PyTorch and YOLOv8 models. Both PyTorch and YOLOv8 natively handle PIL images and implicitly convert NumPy arrays back to PIL format internally, creating a redundant double-conversion overhead that wastes CPU cycles and memory.
+**Action:** Always ensure that PIL images are preserved and passed directly to deep learning models like YOLOv8 and PyTorch to avoid unnecessary double-conversions when possible.
