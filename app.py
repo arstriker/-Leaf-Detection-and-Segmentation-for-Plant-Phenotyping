@@ -214,6 +214,10 @@ def main():
                 # causes the models to unnecessarily convert it back to a PIL image internally,
                 # wasting CPU cycles and memory.
                 if model_option == "YOLOv8-cls (Fast & Modern)":
+                    # Pass the original PIL Image to avoid redundant np->PIL conversion overhead
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
+                else:
+                    # Pass the original PIL Image to avoid redundant np->PIL conversion overhead
                     # Bolt: YOLOv8 handles PIL Images gracefully. Passing the original PIL Image
                     # instead of the NumPy array avoids redundant conversion overhead.
                     disease_class, confidence, probs = yolo_classifier.classify(image)
