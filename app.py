@@ -266,6 +266,15 @@ def main():
         # Display latest database entries
         st.subheader("Recent Database Records")
         try:
+             db = PhenotypeDatabase("phenotyping_results.db")
+             # Optimization: Only fetch the top 5 records to save memory/time
+             records = db.get_all_reports(limit=5)
+             if records:
+                 df_records = pd.DataFrame(records, columns=["ID", "Timestamp", "Disease Class", "Confidence", "Leaves Detected", "Traits JSON"])
+                 # Note: head(5) is now redundant but kept for safety if API changes back
+                 st.dataframe(df_records.drop(columns=["Traits JSON"]).head(5), hide_index=True)
+             else:
+                 st.write("No records yet.")
             db = PhenotypeDatabase("phenotyping_results.db")
             records = db.get_all_reports(limit=5)
             # Re-use the already loaded db instance globally and use optimized backend query
