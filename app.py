@@ -54,6 +54,7 @@ st.markdown(
 )
 
 
+
 @st.cache_resource
 def load_models():
     # Placeholders for actual paths
@@ -61,6 +62,10 @@ def load_models():
     yolov8_model = r"runs\classify\runs\classify\leaf_disease_model2\weights\best.pt"
     class_names = "class_names.txt"
 
+    classifier = DiseaseClassifier(disease_model, class_names_path=class_names)
+    db = PhenotypeDatabase("phenotyping_results.db")
+
+    return classifier, db
     resnet_classifier = DiseaseClassifier(disease_model, class_names_path=class_names)
     yolo_classifier = YOLOv8DiseaseClassifier(yolov8_model)
     yolo_detector = YOLOv8ObjectDetector("yolov8n.pt")  # Auto-downloads base model
@@ -69,12 +74,17 @@ def load_models():
     return resnet_classifier, yolo_classifier, yolo_detector, db
 
 
+
+
+
+
 def main():
     st.markdown(
         "<h1 class='main-header'>Automated Leaf Detection and Phenotyping</h1>",
         unsafe_allow_html=True,
     )
 
+    classifier, db = load_models()
     resnet_classifier, yolo_classifier, yolo_detector, db = load_models()
 
     # Sidebar
@@ -120,7 +130,7 @@ def main():
             with st.spinner("Processing image..."):
                 # Run preprocessing
                 gray, std_img = grayscale_and_standardize(img_np)
-                clahe = apply_clahe((std_img * 255).astype(np.uint8))
+                clahe = apply_color_clahe(img_np)
                 exg, exr, exg_vis, exr_vis = extract_color_indices(img_np)
                 edges, lbp, lbp_vis = extract_edges_and_texture(gray)
 
@@ -159,12 +169,19 @@ def main():
             st.divider()
 
             # 3. Segmentation and Detection
+            st.subheader("3. Segmentation (PhenotyperCV / CV fallback)")
+
+            with st.spinner("Segmenting..."):
+                mask = segment_leaf(img_np, exg=exg)
             st.subheader("3. Segmentation (Powered by PlantCV)")
 
             with st.spinner("Segmenting and running Object Detection..."):
                 mask = segment_leaf(img_np)
                 segmented_leaf = cv2.bitwise_and(img_np, img_np, mask=mask)
 
+                st.image(
+                    segmented_leaf, caption="Segmented Leaf", use_container_width=True
+                )
                 # Run YOLOv8 Object Detection on the segmented leaf
                 detected_leaf_img = yolo_detector.detect_and_draw(segmented_leaf)
 
@@ -188,14 +205,32 @@ def main():
             st.subheader("4. Phenotyping Report & Disease Classification")
 
             with st.spinner("Extracting traits and classifying disease..."):
+                traits = extract_features(img_np, mask, lbp=lbp)
+                disease_class, confidence, probs = classifier.classify(img_np)
                 traits = extract_features(img_np, mask)
 
+                # Performance optimization: Pass the PIL image directly to the classifiers.
+                # PyTorch and YOLOv8 natively handle PIL images. Passing the NumPy array (img_np)
+                # causes the models to unnecessarily convert it back to a PIL image internally,
+                # wasting CPU cycles and memory.
                 if model_option == "YOLOv8-cls (Fast & Modern)":
+                    # Pass the original PIL Image to avoid redundant np->PIL conversion overhead
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
+                else:
+                    # Pass the original PIL Image to avoid redundant np->PIL conversion overhead
+                    # Bolt: YOLOv8 handles PIL Images gracefully. Passing the original PIL Image
+                    # instead of the NumPy array avoids redundant conversion overhead.
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
+                else:
+                    # Bolt: ResNet classifier internally works with PIL Images. Passing the original
+                    # PIL Image directly avoids the overhead of converting the NumPy array back to PIL.
+                    # YOLOv8 handles numpy arrays directly and gracefully
                     disease_class, confidence, probs = yolo_classifier.classify(img_np)
                 else:
-                    disease_class, confidence, probs = resnet_classifier.classify(
-                        img_np
-                    )
+                    # Pass the original PIL `image` instead of `img_np` to avoid redundant NumPy-to-PIL conversion in `classify`
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
+                else:
+                    disease_class, confidence, probs = resnet_classifier.classify(image)
 
                 # Save to database (Assuming 1 leaf per frame for now)
                 db.save_report(disease_class, confidence, 1, traits)
@@ -256,6 +291,19 @@ def main():
         # Display latest database entries
         st.subheader("Recent Database Records")
         try:
+            db = PhenotypeDatabase("phenotyping_results.db")
+            records = db.get_all_reports()
+             db = PhenotypeDatabase("phenotyping_results.db")
+             # Optimization: Only fetch the top 5 records to save memory/time
+             records = db.get_all_reports(limit=5)
+             if records:
+                 df_records = pd.DataFrame(records, columns=["ID", "Timestamp", "Disease Class", "Confidence", "Leaves Detected", "Traits JSON"])
+                 # Note: head(5) is now redundant but kept for safety if API changes back
+                 st.dataframe(df_records.drop(columns=["Traits JSON"]).head(5), hide_index=True)
+             else:
+                 st.write("No records yet.")
+            db = PhenotypeDatabase("phenotyping_results.db")
+            records = db.get_all_reports(limit=5)
             # Re-use the already loaded db instance globally and use optimized backend query
             records = db.get_recent_reports(limit=5, include_traits=False)
             if records:
@@ -269,12 +317,19 @@ def main():
                         "Leaves Detected",
                     ],
                 )
+                st.dataframe(
+                    df_records.drop(columns=["Traits JSON"]).head(5), hide_index=True
+                )
+                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
+                    ],
+                )
                 # Remove redundant head(5) truncation as the database limits it for us
                 st.dataframe(df_records, hide_index=True)
             else:
                 st.write("No records yet.")
         except Exception as e:
             st.write("Database not initialized yet.")
+
 
 
 if __name__ == "__main__":
