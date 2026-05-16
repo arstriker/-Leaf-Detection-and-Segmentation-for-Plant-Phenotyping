@@ -1,3 +1,26 @@
 ## 2024-03-07 - Database Fetch & PIL conversion optimizations
 **Learning:** Streamlit data structures can load significantly faster when avoiding fetching unneeded large JSON columns by specifying the SQL columns directly instead of SELECT *. Reusing PIL images in YOLOv8 & PyTorch classifiers saves memory overhead compared to repeated implicit NumPy conversions.
 **Action:** Next time working with image processing pipelines and Streamlit databases, audit variable typing to prefer native PIL conversions and ensure SQL selects avoid hidden large JSON columns.
+## 2024-05-24 - Avoid SQLite SELECT * on Large JSON Columns
+**Learning:** This application stores heavy computed data (`traits_json`) inside an SQLite row. Using `SELECT *` simply to truncate that column later in pandas causes a severe and unnecessary I/O bottleneck by loading megabytes of unneeded JSON text from disk to memory for the dashboard preview.
+**Action:** Always specifically query only the needed columns (`SELECT id, timestamp, disease_class, confidence, num_leaves_detected`) when hydrating summary views in Streamlit to bypass the expensive JSON deserialization overhead.
+
+## 2024-05-15 - Minimize PIL-to-NumPy conversion
+**Learning:** Passing PIL images directly to PyTorch/YOLO classifiers avoids redundant numpy-to-PIL conversion overhead. PyTorch models trained on torchvision typically expect PIL images natively or are easily converted to Tensors without intermediate NumPy conversion if we provide PIL. YOLOv8 also gracefully accepts PIL images natively.
+**Action:** When a PIL image is already loaded from disk/upload, pass the original PIL image directly into the classifiers instead of passing a numpy array that the classifier must immediately convert back to PIL internally.
+
+## 2024-05-15 - Optimize Database Query Payload
+**Learning:** Using `SELECT *` on tables with large JSON columns (like `traits_json`) to display summary tables in Streamlit causes unnecessary I/O and memory overhead when that column is immediately dropped on the frontend.
+**Action:** Always selectively query only the columns needed by the UI instead of defaulting to `SELECT *`, especially when dealing with JSON payload columns in SQLite.
+## 2026-03-04 - Redundant Type Conversions in Model Inference
+**Learning:** The `DiseaseClassifier` and Ultralytics YOLOv8 natively handle PIL Images or automatically convert numpy arrays back to PIL Images inside their inference blocks. By default, the Streamlit frontend was casting the uploaded PIL Image to a numpy array, running CV operations, and then passing that *same* numpy array into the classifier, causing a redundant `PIL -> Numpy -> PIL` roundtrip that increases memory overhead and wastes CPU cycles.
+**Action:** Whenever passing image data between frontend handlers and backend neural network wrappers, check the model's native expected input type and preserve it directly if possible to avoid unnecessary casting costs.
+## 2024-05-24 - Redundant Image to NumPy array conversions in classification pipeline
+**Learning:** A key performance bottleneck in this repository is minimizing redundant conversions between PIL Images and NumPy arrays. Ultralytics YOLOv8 natively handles both PIL Images and NumPy arrays gracefully during inference. Similarly, the PyTorch DiseaseClassifier expects a PIL Image, but will defensively convert a NumPy array back to a PIL Image if one is provided. Passing NumPy arrays to these classifiers from the frontend causes unnecessary conversion overhead, increasing memory usage and CPU cycles.
+**Action:** When working with image pipelines (especially before `model_inference.py`), preserve the original `PIL.Image` objects and pass them directly to model inference methods (like YOLOv8 or PyTorch models) rather than unnecessarily casting them to NumPy arrays first. Only cast to NumPy for specific computer vision operations (like OpenCV or PlantCV) that strictly require it.
+## 2024-05-24 - Avoiding Redundant Image Type Conversions
+**Learning:** This codebase frequently converts between PIL Images and NumPy arrays depending on the underlying library (e.g., PyTorch vs OpenCV). `resnet_classifier.classify()` explicitly converts NumPy arrays back to PIL Images internally using `Image.fromarray(image)`. In Streamlit, `Image.open()` natively returns a PIL Image.
+**Action:** When invoking models or preprocessing functions, always trace back the image source. If the function ultimately requires a PIL Image and we already possess one from the upload step, pass it directly instead of its derived NumPy counterpart (`np.array(image)`) to save memory allocations and CPU cycles.
+## 2025-02-12 - Redundant Image Conversions
+**Learning:** In the `Automated Leaf Detection and Phenotyping` app, PIL images were being converted to NumPy arrays for some tasks, and then those NumPy arrays were being passed into PyTorch and YOLOv8 models. Both PyTorch and YOLOv8 natively handle PIL images and implicitly convert NumPy arrays back to PIL format internally, creating a redundant double-conversion overhead that wastes CPU cycles and memory.
+**Action:** Always ensure that PIL images are preserved and passed directly to deep learning models like YOLOv8 and PyTorch to avoid unnecessary double-conversions when possible.
