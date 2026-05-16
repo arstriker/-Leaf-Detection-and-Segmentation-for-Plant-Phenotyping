@@ -305,7 +305,7 @@ def main():
             db = PhenotypeDatabase("phenotyping_results.db")
             records = db.get_all_reports(limit=5)
             # Re-use the already loaded db instance globally and use optimized backend query
-            records = db.get_recent_reports(limit=5)
+            records = db.get_recent_reports(limit=5, include_traits=False)
             if records:
                 df_records = pd.DataFrame(
                     records,
