@@ -1,3 +1,6 @@
+## 2024-03-07 - Database Fetch & PIL conversion optimizations
+**Learning:** Streamlit data structures can load significantly faster when avoiding fetching unneeded large JSON columns by specifying the SQL columns directly instead of SELECT *. Reusing PIL images in YOLOv8 & PyTorch classifiers saves memory overhead compared to repeated implicit NumPy conversions.
+**Action:** Next time working with image processing pipelines and Streamlit databases, audit variable typing to prefer native PIL conversions and ensure SQL selects avoid hidden large JSON columns.
 ## 2024-05-24 - Avoid SQLite SELECT * on Large JSON Columns
 **Learning:** This application stores heavy computed data (`traits_json`) inside an SQLite row. Using `SELECT *` simply to truncate that column later in pandas causes a severe and unnecessary I/O bottleneck by loading megabytes of unneeded JSON text from disk to memory for the dashboard preview.
 **Action:** Always specifically query only the needed columns (`SELECT id, timestamp, disease_class, confidence, num_leaves_detected`) when hydrating summary views in Streamlit to bypass the expensive JSON deserialization overhead.

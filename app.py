@@ -209,6 +209,13 @@ def main():
                 disease_class, confidence, probs = classifier.classify(img_np)
                 traits = extract_features(img_np, mask)
 
+                # Optimization: Passing the PIL Image directly avoids redundant NumPy-to-PIL conversion overhead
+                if model_option == "YOLOv8-cls (Fast & Modern)":
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
+                else:
+                    disease_class, confidence, probs = resnet_classifier.classify(
+                        image
+                    )
                 # Performance optimization: Pass the PIL image directly to the classifiers.
                 # PyTorch and YOLOv8 natively handle PIL images. Passing the NumPy array (img_np)
                 # causes the models to unnecessarily convert it back to a PIL image internally,
