@@ -30,6 +30,22 @@ def apply_clahe(gray_image, clip_limit=2.0, tile_grid_size=(8, 8)):
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     return clahe.apply(gray_image)
 
+def apply_color_clahe(image):
+    """
+    Applies CLAHE to the L channel of the image (Lab color space).
+    Uses phenotypercv if available, otherwise falls back to OpenCV implementation.
+    """
+    if PHENOTYPER_CV_AVAILABLE:
+        return phenotypercv.CLAHE_correct_rgb(image)
+
+    # Fallback implementation
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    cl = clahe.apply(l)
+    limg = cv2.merge((cl, a, b))
+    return cv2.cvtColor(limg, cv2.COLOR_Lab2BGR)
+
 def extract_color_indices(image):
     """
     Extracts Excess Green (ExG) and Excess Red (ExR) indices.
@@ -203,6 +219,21 @@ def extract_features(image, mask, gray_image=None, lbp=None):
         features['lbp_std'] = float(np.std(lbp_masked))
     else:
         features['lbp_mean'] = features['lbp_std'] = 0.0
+
+    # --- Skeleton Analysis (PhenotyperCV) ---
+    if PHENOTYPER_CV_AVAILABLE:
+        try:
+            from skimage.morphology import skeletonize
+            skel_bool = skeletonize(binary_mask > 0)
+            skel = (skel_bool * 255).astype(np.uint8)
+
+            endpoints = phenotypercv.find_endpoints(skel)
+            branchpoints = phenotypercv.find_branchpoints(skel)
+
+            features['num_endpoints'] = int(np.sum(endpoints > 0))
+            features['num_branchpoints'] = int(np.sum(branchpoints > 0))
+        except ImportError:
+            pass
         
     return features
 

@@ -123,7 +123,7 @@ def main():
             with st.spinner("Processing image..."):
                 # Run preprocessing
                 gray, std_img = grayscale_and_standardize(img_np)
-                clahe = apply_clahe((std_img * 255).astype(np.uint8))
+                clahe = apply_color_clahe(img_np)
                 exg, exr, exg_vis, exr_vis = extract_color_indices(img_np)
                 edges, lbp, lbp_vis = extract_edges_and_texture(gray)
 
