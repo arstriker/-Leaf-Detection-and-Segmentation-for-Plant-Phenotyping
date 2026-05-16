@@ -2,13 +2,12 @@ import cv2
 import numpy as np
 from skimage.feature import local_binary_pattern
 from skimage.measure import regionprops, label
+from skimage.measure import regionprops, label
+from plantcv import plantcv as pcv
 
-# Try to import phenotypercv if it exists
-try:
-    import phenotypercv
-    PHENOTYPER_CV_AVAILABLE = True
-except ImportError:
-    PHENOTYPER_CV_AVAILABLE = False
+# Configure PlantCV globally
+pcv.params.debug = None
+
 
 
 def grayscale_and_standardize(image):
@@ -30,6 +29,22 @@ def apply_clahe(gray_image, clip_limit=2.0, tile_grid_size=(8, 8)):
     """
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     return clahe.apply(gray_image)
+
+def apply_color_clahe(image):
+    """
+    Applies CLAHE to the L channel of the image (Lab color space).
+    Uses phenotypercv if available, otherwise falls back to OpenCV implementation.
+    """
+    if PHENOTYPER_CV_AVAILABLE:
+        return phenotypercv.CLAHE_correct_rgb(image)
+
+    # Fallback implementation
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    cl = clahe.apply(l)
+    limg = cv2.merge((cl, a, b))
+    return cv2.cvtColor(limg, cv2.COLOR_Lab2BGR)
 
 def extract_color_indices(image):
     """
@@ -83,10 +98,9 @@ def extract_edges_and_texture(gray_image):
     
     return edges, lbp, lbp_vis
 
-def segment_leaf(image):
+def segment_leaf(image, exg=None):
     """
-    Segments the leaf from the background. Uses phenotypercv if available,
-    otherwise uses Otsu thresholding on Excess Green (ExG) / Grayscale.
+    Segments the leaf from the background using PlantCV.
     Returns a binary mask (0 for background, 255 for leaf).
     """
     if PHENOTYPER_CV_AVAILABLE:
@@ -98,7 +112,8 @@ def segment_leaf(image):
     # Standard Computer Vision Fallback
     # 1. Convert to Lab color space. Leaf is usually very pronounced in 'a' and 'b' channels.
     # Alternatively, use ExG which is robust for green leaves.
-    exg, exr, exg_vis, exr_vis = extract_color_indices(image)
+    if exg is None:
+        exg, exr, exg_vis, exr_vis = extract_color_indices(image)
     
     # Threshold ExG using Otsu's method
     # Need to convert ExG to uint8 properly mapped to [0, 255]
@@ -111,13 +126,32 @@ def segment_leaf(image):
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    # 1. Convert to a colorspace that isolates green (e.g. LAB)
+    a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
+
+    # 2. Threshold the 'a' channel to separate leaf from background
+    # Green plants appear dark in the 'a' channel.
+    # We use an inverted auto threshold to get a white leaf on a black background
+    thresh = pcv.threshold.otsu(gray_img=a_channel, object_type='dark')
+
+    # 3. Clean up the mask
+    # Fills small holes within the leaf
+    mask = pcv.fill(bin_img=thresh, size=50)
     
-    # Keep only the largest connected component (assuming the leaf is the largest object)
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    # Optional: clean up noise in the background
+    # mask = pcv.fill_holes(bin_img=mask)
     
-    if num_labels > 1:
-        # sizes are in the last column of stats
-        # The 0th label is the background. Extract the max size among the others.
+    # 4. Find connected components (objects)
+    # This acts like finding the largest contours
+    labeled_mask, num_objects = pcv.create_labels(mask=mask)
+        
+    # Isolate the largest object
+    # If there are multiple parts we want the main leaf
+    if num_objects > 1:
+        # pcv.roi.multi doesn't easily return the largest by default
+        # But we can use standard OpenCV to pull out the largest blob 
+        # from PlantCV's clean mask
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
         largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
         final_mask = np.zeros_like(mask)
         final_mask[labels == largest_label] = 255
@@ -126,7 +160,7 @@ def segment_leaf(image):
         
     return final_mask
 
-def extract_features(image, mask):
+def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
     Includes Shape, Size, Texture, Color.
@@ -152,7 +186,7 @@ def extract_features(image, mask):
     features['eccentricity'] = leaf_prop.eccentricity
     features['solidity'] = leaf_prop.solidity
     features['extent'] = leaf_prop.extent
-    features['aspect_ratio'] = leaf_prop.major_axis_length / (leaf_prop.minor_axis_length + 1e-6)
+    features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
     img_masked = cv2.bitwise_and(image, image, mask=mask)
@@ -172,8 +206,12 @@ def extract_features(image, mask):
         features['std_R'] = features['std_G'] = features['std_B'] = 0.0
 
     # --- Texture Features (LBP) ---
-    gray_image, _ = grayscale_and_standardize(image)
-    _, lbp, _ = extract_edges_and_texture(gray_image)
+    if gray_image is None or lbp is None:
+        if gray_image is None:
+            gray_image, _ = grayscale_and_standardize(image)
+        if lbp is None:
+            _, lbp, _ = extract_edges_and_texture(gray_image)
+
     lbp_masked = lbp[mask > 0]
     
     if len(lbp_masked) > 0:
@@ -181,6 +219,21 @@ def extract_features(image, mask):
         features['lbp_std'] = float(np.std(lbp_masked))
     else:
         features['lbp_mean'] = features['lbp_std'] = 0.0
+
+    # --- Skeleton Analysis (PhenotyperCV) ---
+    if PHENOTYPER_CV_AVAILABLE:
+        try:
+            from skimage.morphology import skeletonize
+            skel_bool = skeletonize(binary_mask > 0)
+            skel = (skel_bool * 255).astype(np.uint8)
+
+            endpoints = phenotypercv.find_endpoints(skel)
+            branchpoints = phenotypercv.find_branchpoints(skel)
+
+            features['num_endpoints'] = int(np.sum(endpoints > 0))
+            features['num_branchpoints'] = int(np.sum(branchpoints > 0))
+        except ImportError:
+            pass
         
     return features
 
