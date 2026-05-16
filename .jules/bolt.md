@@ -1,3 +1,11 @@
+
+## 2024-05-15 - Minimize PIL-to-NumPy conversion
+**Learning:** Passing PIL images directly to PyTorch/YOLO classifiers avoids redundant numpy-to-PIL conversion overhead. PyTorch models trained on torchvision typically expect PIL images natively or are easily converted to Tensors without intermediate NumPy conversion if we provide PIL. YOLOv8 also gracefully accepts PIL images natively.
+**Action:** When a PIL image is already loaded from disk/upload, pass the original PIL image directly into the classifiers instead of passing a numpy array that the classifier must immediately convert back to PIL internally.
+
+## 2024-05-15 - Optimize Database Query Payload
+**Learning:** Using `SELECT *` on tables with large JSON columns (like `traits_json`) to display summary tables in Streamlit causes unnecessary I/O and memory overhead when that column is immediately dropped on the frontend.
+**Action:** Always selectively query only the columns needed by the UI instead of defaulting to `SELECT *`, especially when dealing with JSON payload columns in SQLite.
 ## 2026-03-04 - Redundant Type Conversions in Model Inference
 **Learning:** The `DiseaseClassifier` and Ultralytics YOLOv8 natively handle PIL Images or automatically convert numpy arrays back to PIL Images inside their inference blocks. By default, the Streamlit frontend was casting the uploaded PIL Image to a numpy array, running CV operations, and then passing that *same* numpy array into the classifier, causing a redundant `PIL -> Numpy -> PIL` roundtrip that increases memory overhead and wastes CPU cycles.
 **Action:** Whenever passing image data between frontend handlers and backend neural network wrappers, check the model's native expected input type and preserve it directly if possible to avoid unnecessary casting costs.

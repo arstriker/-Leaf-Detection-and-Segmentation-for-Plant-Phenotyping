@@ -315,7 +315,6 @@ def main():
                         "Disease Class",
                         "Confidence",
                         "Leaves Detected",
-                        "Traits JSON",
                     ],
                 )
                 st.dataframe(
