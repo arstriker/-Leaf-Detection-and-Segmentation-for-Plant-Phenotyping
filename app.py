@@ -209,6 +209,9 @@ def main():
                 disease_class, confidence, probs = classifier.classify(img_np)
                 traits = extract_features(img_np, mask)
 
+                # Pass PIL Image directly to avoid NumPy-to-PIL conversion overhead
+                if model_option == "YOLOv8-cls (Fast & Modern)":
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 # Pass PIL image directly to classifiers to avoid double-conversion
                 if model_option == "YOLOv8-cls (Fast & Modern)":
                     disease_class, confidence, probs = yolo_classifier.classify(image)
@@ -325,6 +328,7 @@ def main():
             records = db.get_recent_reports(limit=5)
             records = db.get_recent_reports(limit=5, include_traits=False)
             if records:
+                # Traits JSON is now excluded in the DB query to reduce memory usage
                 # ⚡ Bolt Optimization: Removed "Traits JSON" from DataFrame construction since
                 # the optimized database query no longer fetches it. Saves memory & computation
                 # from pandas DataFrame generation and dropping columns.
