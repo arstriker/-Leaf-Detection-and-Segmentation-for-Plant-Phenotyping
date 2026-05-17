@@ -1,3 +1,6 @@
+## 2024-05-24 - Avoid SELECT * on large JSON columns
+**Learning:** Selecting all columns (`SELECT *`) on SQLite tables containing large JSON text fields (e.g., `traits_json`) causes significant I/O and memory overhead, especially when those JSON fields aren't even used by the frontend (like in recent reports summaries).
+**Action:** Always explicitly specify required columns in SQL queries to avoid unnecessary data loading, particularly for large payloads or summary views.
 ## 2024-05-15 - Optimize Database Queries to Avoid Fetching Large JSON Columns
 **Learning:** Using `SELECT *` on tables with large JSON columns (like `traits_json` in `phenotyping_report`) introduces significant memory overhead and I/O latency, even when paired with `LIMIT`, because SQLite still reads the large blobs to construct the row tuples before discarding the columns in the application logic.
 **Action:** When fetching summary data for the Streamlit UI (where only a subset of columns like ID, Timestamp, Class, Confidence, and Leaves are displayed), explicitly select only those required columns. This minimizes I/O and memory overhead.
