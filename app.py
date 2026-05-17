@@ -319,6 +319,9 @@ def main():
             # Re-use the already loaded db instance globally and use optimized backend query
             records = db.get_recent_reports(limit=5, include_traits=False)
             if records:
+                # ⚡ Bolt Optimization: Removed "Traits JSON" from DataFrame construction since
+                # the optimized database query no longer fetches it. Saves memory & computation
+                # from pandas DataFrame generation and dropping columns.
                 # ⚡ Bolt Optimization: The Traits JSON column was removed from the backend query
                 # meaning we no longer allocate a massive dataframe memory block just to drop it here
                 df_records = pd.DataFrame(
