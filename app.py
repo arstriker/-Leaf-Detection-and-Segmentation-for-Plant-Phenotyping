@@ -212,6 +212,10 @@ def main():
                 # Pass PIL image directly to classifiers to prevent redundant type conversions
                 # Both models expect PIL images and handles them gracefully, saving memory and CPU cycle
                 if model_option == "YOLOv8-cls (Fast & Modern)":
+                    # Bolt: Pass PIL Image directly to avoid redundant PIL -> NumPy -> PIL conversions
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
+                else:
+                    # Bolt: Pass PIL Image directly to avoid redundant PIL -> NumPy -> PIL conversions
                     disease_class, confidence, probs = yolo_classifier.classify(image)
                 # ⚡ Bolt Optimization: Pass the original PIL `image` directly instead of `img_np`
                 # 🎯 Why: The PyTorch DiseaseClassifier expects PIL Images and natively converts numpy arrays back to PIL under the hood.
