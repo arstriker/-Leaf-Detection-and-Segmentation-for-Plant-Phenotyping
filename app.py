@@ -209,6 +209,9 @@ def main():
                 disease_class, confidence, probs = classifier.classify(img_np)
                 traits = extract_features(img_np, mask)
 
+                # Pass PIL image directly to classifiers to avoid double-conversion
+                if model_option == "YOLOv8-cls (Fast & Modern)":
+                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 # ⚡ Bolt Optimization: Pass the original PIL image directly to the classifiers
                 # instead of the NumPy array to prevent redundant double-conversions in the model inference backend
                 if model_option == "YOLOv8-cls (Fast & Modern)":

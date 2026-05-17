@@ -1,3 +1,10 @@
+## 2024-05-24 - PIL vs NumPy Conversion Overhead in PyTorch/YOLO
+**Learning:** PyTorch/Ultralytics models natively accept PIL Images and implicitly convert NumPy arrays back to PIL if provided. In `app.py`, passing `img_np` to `classifier.classify()` forced a redundant `Image.fromarray(image)` conversion on every inference, wasting memory and CPU cycles.
+**Action:** When working with Streamlit + PyTorch/YOLO, always preserve the initial PIL Image object and pass it directly to classification methods to avoid double-conversion overhead.
+
+## 2024-05-24 - SQLite JSON Column Memory Bloat in Streamlit
+**Learning:** In `database.py`, using `SELECT *` to fetch the top 5 recent records also pulled in the `traits_json` column (a large JSON payload) for every row, even though the frontend immediately discarded it (`.drop(columns=["Traits JSON"])`).
+**Action:** Always explicitly specify required columns in SQLite queries (`SELECT id, timestamp...`) when populating frontend summary tables to drastically reduce I/O and memory usage.
 ## 2024-05-24 - Model Inference PIL vs NumPy Double-Conversion
 
 **Learning:** The PyTorch backend for the `resnet_classifier` and the `yolo_classifier` in `model_inference.py` expect PIL Images natively (and implicitly re-convert NumPy array representations back into `PIL.Image` objects inside the classification methods). Because the Streamlit front-end initially reads user uploads using PIL, then immediately converted them to a NumPy array for preprocessing (`img_np = np.array(image)`), passing that `img_np` down to the classifier resulted in a massive, redundant memory re-allocation back into a PIL format on every frame/upload, stalling the UI thread with unnecessary CPU cycles. Additionally, database records were fetching large text blobs (JSON features) into pandas DataFrames, just to instantly drop them before displaying.

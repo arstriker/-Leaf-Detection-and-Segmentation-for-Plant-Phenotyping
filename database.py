@@ -111,6 +111,7 @@ class PhenotypeDatabase:
         # Avoid fetching the large traits_json column into memory when it's not needed by the UI
         # Optimization: Fetch only required columns to avoid loading the large 'traits_json' string into memory
         cursor.execute(
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
             "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
             (limit,),
         )
