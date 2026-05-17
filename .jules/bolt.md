@@ -1,3 +1,6 @@
+## 2024-05-15 - Optimize Database Queries to Avoid Fetching Large JSON Columns
+**Learning:** Using `SELECT *` on tables with large JSON columns (like `traits_json` in `phenotyping_report`) introduces significant memory overhead and I/O latency, even when paired with `LIMIT`, because SQLite still reads the large blobs to construct the row tuples before discarding the columns in the application logic.
+**Action:** When fetching summary data for the Streamlit UI (where only a subset of columns like ID, Timestamp, Class, Confidence, and Leaves are displayed), explicitly select only those required columns. This minimizes I/O and memory overhead.
 ## 2024-05-24 - PIL vs NumPy Conversion Overhead in PyTorch/YOLO
 **Learning:** PyTorch/Ultralytics models natively accept PIL Images and implicitly convert NumPy arrays back to PIL if provided. In `app.py`, passing `img_np` to `classifier.classify()` forced a redundant `Image.fromarray(image)` conversion on every inference, wasting memory and CPU cycles.
 **Action:** When working with Streamlit + PyTorch/YOLO, always preserve the initial PIL Image object and pass it directly to classification methods to avoid double-conversion overhead.

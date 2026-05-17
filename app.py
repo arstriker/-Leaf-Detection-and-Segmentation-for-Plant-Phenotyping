@@ -320,6 +320,9 @@ def main():
             db = PhenotypeDatabase("phenotyping_results.db")
             records = db.get_all_reports(limit=5)
             # Re-use the already loaded db instance globally and use optimized backend query
+            # Bolt Optimization: Fetch explicitly defined columns.
+            # Omit fetching large 'traits_json' from DB to reduce memory and I/O overhead.
+            records = db.get_recent_reports(limit=5)
             records = db.get_recent_reports(limit=5, include_traits=False)
             if records:
                 # ⚡ Bolt Optimization: Removed "Traits JSON" from DataFrame construction since
