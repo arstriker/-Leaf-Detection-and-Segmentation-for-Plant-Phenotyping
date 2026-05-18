@@ -365,6 +365,8 @@ def main():
                         "Leaves Detected",
                     ],
                 )
+                # Remove redundant head(5) truncation as the database limits it for us
+                # Performance Optimization: `traits_json` is no longer fetched in the DB query, so no need to drop it here
                 st.dataframe(
                     df_records.drop(columns=["Traits JSON"]).head(5), hide_index=True
                 )

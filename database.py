@@ -88,6 +88,12 @@ class PhenotypeDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Performance Optimization: Explicitly select only the summary columns.
+        # Avoids loading the potentially large `traits_json` TEXT blob into memory
+        # since the frontend only displays summary information for recent records.
+        cursor.execute(
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
+            (limit,)
         # Optimize memory by explicitly querying only necessary columns, excluding large traits_json payload
         cursor.execute(
         # Bolt Optimization: explicitly select required columns, avoiding memory allocation for large traits_json column.
