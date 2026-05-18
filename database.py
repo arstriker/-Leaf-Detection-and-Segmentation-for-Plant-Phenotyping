@@ -49,10 +49,27 @@ class PhenotypeDatabase:
 
         conn.commit()
         conn.close()
+        
+    def get_all_reports(self, limit=None):
+        """
+        Retrieves reports from the database, ordered by timestamp descending.
+
+        Args:
+            limit (int, optional): The maximum number of records to return.
+                                   If None, returns all records.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if limit:
+            cursor.execute('SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?', (limit,))
+        else:
+            cursor.execute('SELECT * FROM phenotyping_report ORDER BY timestamp DESC')
+
 
     def get_all_reports(self):
         """
-        Retrieves all reports from the database.
+        Retrieves reports from the database, optionally limited to the most recent ones.
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -81,6 +98,7 @@ class PhenotypeDatabase:
         return rows
 
     def get_recent_reports(self, limit=5):
+    def get_recent_reports(self, limit=5, include_traits=True):
         """
         Retrieves the most recent reports from the database up to the specified limit.
         Used to optimize frontend rendering by avoiding fetching all historical records into memory.
@@ -88,8 +106,43 @@ class PhenotypeDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Performance Optimization: Explicitly select only the summary columns.
+        # Avoids loading the potentially large `traits_json` TEXT blob into memory
+        # since the frontend only displays summary information for recent records.
         cursor.execute(
-            "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
+            (limit,)
+        # Optimize memory by explicitly querying only necessary columns, excluding large traits_json payload
+        cursor.execute(
+        # Bolt Optimization: explicitly select required columns, avoiding memory allocation for large traits_json column.
+        cursor.execute(
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+        # ⚡ Bolt Optimization: Only fetch required columns, specifically avoiding traits_json
+        # which can be a large JSON blob. This reduces memory footprint and SQLite I/O.
+        cursor.execute(
+            """
+            SELECT id, timestamp, disease_class, confidence, num_leaves_detected
+            FROM phenotyping_report
+            ORDER BY timestamp DESC LIMIT ?
+            """,
+        # ⚡ Bolt Optimization: Specifically select only the required fields instead of SELECT *
+        # This prevents the potentially massive 'traits_json' string from being redundantly loaded
+        # from disk into memory, parsing, and transferring across the I/O bus when only summary rows are needed.
+        # Optimization: Explicitly select required columns to avoid fetching the large traits_json column into memory
+        cursor.execute(
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+        if include_traits:
+            query = "SELECT * FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?"
+        else:
+            query = "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?"
+
+        cursor.execute(query, (limit,))
+        # Avoid fetching the large traits_json column into memory when it's not needed by the UI
+        # Optimization: Fetch only required columns to avoid loading the large 'traits_json' string into memory
+        cursor.execute(
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?", (limit,)
+            "SELECT id, timestamp, disease_class, confidence, num_leaves_detected FROM phenotyping_report ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
         )
         rows = cursor.fetchall()
 
