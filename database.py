@@ -97,7 +97,6 @@ class PhenotypeDatabase:
         conn.close()
         return rows
 
-    def get_recent_reports(self, limit=5):
     def get_recent_reports(self, limit=5, include_traits=True):
         """
         Retrieves the most recent reports from the database up to the specified limit.
