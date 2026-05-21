@@ -108,23 +108,14 @@ def extract_edges_and_texture(gray_image):
     return edges, lbp, lbp_vis
 
 
-def segment_leaf(image):
 def segment_leaf(image, exg=None):
     """
-    Segments the leaf from the background using PlantCV.
+    Segments the leaf from the background.
     Returns a binary mask (0 for background, 255 for leaf).
     """
-    if PHENOTYPER_CV_AVAILABLE:
-        # Fallback to custom logic if phenotypercv API is unknown.
-        # Assuming there is some segment function: phenotypercv.segment(image)
-        # For now, if someone installs it but we don't know the API, handle it gracefully.
-        pass
-
     # Standard Computer Vision Fallback
     # 1. Convert to Lab color space. Leaf is usually very pronounced in 'a' and 'b' channels.
     # Alternatively, use ExG which is robust for green leaves.
-    exg, exr, exg_vis, exr_vis = extract_color_indices(image)
-
     if exg is None:
         exg, exr, exg_vis, exr_vis = extract_color_indices(image)
     
@@ -148,32 +139,6 @@ def segment_leaf(image, exg=None):
     if num_labels > 1:
         # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
-    # 1. Convert to a colorspace that isolates green (e.g. LAB)
-    a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
-
-    # 2. Threshold the 'a' channel to separate leaf from background
-    # Green plants appear dark in the 'a' channel.
-    # We use an inverted auto threshold to get a white leaf on a black background
-    thresh = pcv.threshold.otsu(gray_img=a_channel, object_type='dark')
-
-    # 3. Clean up the mask
-    # Fills small holes within the leaf
-    mask = pcv.fill(bin_img=thresh, size=50)
-    
-    # Optional: clean up noise in the background
-    # mask = pcv.fill_holes(bin_img=mask)
-    
-    # 4. Find connected components (objects)
-    # This acts like finding the largest contours
-    labeled_mask, num_objects = pcv.create_labels(mask=mask)
-        
-    # Isolate the largest object
-    # If there are multiple parts we want the main leaf
-    if num_objects > 1:
-        # pcv.roi.multi doesn't easily return the largest by default
-        # But we can use standard OpenCV to pull out the largest blob 
-        # from PlantCV's clean mask
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
         largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
         final_mask = np.zeros_like(mask)
         final_mask[labels == largest_label] = 255
@@ -183,7 +148,6 @@ def segment_leaf(image, exg=None):
     return final_mask
 
 
-def extract_features(image, mask, lbp=None):
 def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
@@ -225,10 +189,12 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Use direct boolean indexing instead of creating a full-size masked intermediate image
+    # with cv2.bitwise_and. This avoids allocating unnecessary large arrays in memory and improves execution speed.
+    valid_pixels = image[mask > 0]
+    R = valid_pixels[:, 0]
+    G = valid_pixels[:, 1]
+    B = valid_pixels[:, 2]
 
     if len(R) > 0:
         features["mean_R"] = float(np.mean(R))
