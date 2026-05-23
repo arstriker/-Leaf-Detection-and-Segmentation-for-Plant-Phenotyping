@@ -108,7 +108,6 @@ def extract_edges_and_texture(gray_image):
     return edges, lbp, lbp_vis
 
 
-def segment_leaf(image):
 def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background using PlantCV.
@@ -148,6 +147,10 @@ def segment_leaf(image, exg=None):
     if num_labels > 1:
         # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
+        largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+        mask = np.zeros_like(mask)
+        mask[labels == largest_label] = 255
+
     # 1. Convert to a colorspace that isolates green (e.g. LAB)
     a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
 
@@ -183,7 +186,6 @@ def segment_leaf(image, exg=None):
     return final_mask
 
 
-def extract_features(image, mask, lbp=None):
 def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
@@ -210,25 +212,19 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features["eccentricity"] = leaf_prop.eccentricity
     features["solidity"] = leaf_prop.solidity
     features["extent"] = leaf_prop.extent
-    features["aspect_ratio"] = leaf_prop.major_axis_length / (
-        leaf_prop.minor_axis_length + 1e-6
+    features["aspect_ratio"] = leaf_prop.axis_major_length / (
+        leaf_prop.axis_minor_length + 1e-6
     )
 
-        
-    leaf_prop = props[0] # assuming largest/only object
-    
-    features['area_px'] = leaf_prop.area
-    features['perimeter_px'] = leaf_prop.perimeter
-    features['eccentricity'] = leaf_prop.eccentricity
-    features['solidity'] = leaf_prop.solidity
-    features['extent'] = leaf_prop.extent
-    features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
-    
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Replace `cv2.bitwise_and` with direct boolean indexing.
+    # 🎯 Why: `cv2.bitwise_and` allocates a full-size intermediate array with a black background, which is unnecessary
+    # when we only need to extract pixels within the mask. Using direct boolean indexing `image[mask > 0]` avoids this allocation.
+    # 📊 Impact: Measurably reduces memory footprint and CPU cycles by skipping the intermediate array creation.
+    pixels = image[mask > 0]
+    R = pixels[:, 0]
+    G = pixels[:, 1]
+    B = pixels[:, 2]
 
     if len(R) > 0:
         features["mean_R"] = float(np.mean(R))
@@ -258,8 +254,6 @@ def extract_features(image, mask, gray_image=None, lbp=None):
         features["lbp_std"] = float(np.std(lbp_masked))
     else:
         features["lbp_mean"] = features["lbp_std"] = 0.0
-
-        features['lbp_mean'] = features['lbp_std'] = 0.0
 
     # --- Skeleton Analysis (PhenotyperCV) ---
     if PHENOTYPER_CV_AVAILABLE:
