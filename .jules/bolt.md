@@ -64,3 +64,7 @@
 ## 2025-02-12 - SQLite SELECT * Overhead
 **Learning:** In `database.py`, using `SELECT *` to fetch all columns from `phenotyping_report` in `get_recent_reports()` caused the application to load the potentially large `traits_json` column into memory, even though the Streamlit UI immediately dropped it from the Pandas DataFrame because it wasn't needed for the summary display. This creates unnecessary disk I/O and memory usage.
 **Action:** Always explicitly specify required columns in SQLite queries (`SELECT id, timestamp...`) to avoid fetching large JSON payloads or BLOBs when they are not needed for the current view.
+
+## 2024-05-25 - Cautious File Cleanup During Optimizations
+**Learning:** While trying to resolve pre-existing syntax errors (e.g., duplicated git merge conflict lines) around the code being optimized, it is very easy to inadvertently corrupt the file structure (like accidentally deleting functional fallback logic in `segment_leaf` or messing up indentation) if using broad shell commands like `sed`.
+**Action:** When acting as Bolt, strictly stick to the ONE performance optimization. If syntax errors block testing, fix them surgically using precise tools like `replace_with_git_merge_diff` rather than blindly deleting line ranges, and ALWAYS run `python3 -m py_compile <file>` frequently to catch Python indentation breaks immediately.
