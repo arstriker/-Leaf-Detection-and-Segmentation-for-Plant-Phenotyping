@@ -209,64 +209,12 @@ def main():
                 disease_class, confidence, probs = classifier.classify(img_np)
                 traits = extract_features(img_np, mask)
 
-                # Pass PIL image directly to classifiers to prevent redundant type conversions
-                # Both models expect PIL images and handles them gracefully, saving memory and CPU cycle
-                if model_option == "YOLOv8-cls (Fast & Modern)":
-                    # Bolt: Pass PIL Image directly to avoid redundant PIL -> NumPy -> PIL conversions
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                else:
-                    # Bolt: Pass PIL Image directly to avoid redundant PIL -> NumPy -> PIL conversions
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
                 # ⚡ Bolt Optimization: Pass the original PIL `image` directly instead of `img_np`
                 # 🎯 Why: The PyTorch DiseaseClassifier expects PIL Images and natively converts numpy arrays back to PIL under the hood.
                 # Passing the PIL Image directly avoids the overhead of double-conversion (PIL -> NumPy -> PIL).
                 # YOLOv8 handles both formats natively, so it also benefits from skipping an unnecessary frontend type-cast.
                 # 📊 Impact: Measurably reduces CPU cycles and memory duplication during the inference phase, shaving off processing time per frame.
                 if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                else:
-                # Bolt: Pass PIL image directly to avoid redundant PIL -> NumPy -> PIL conversions
-                # Both DiseaseClassifier and YOLOv8 natively handle PIL Images efficiently.
-                if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                else:
-                # Pass PIL Image directly to avoid NumPy-to-PIL conversion overhead
-                if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                # Pass PIL image directly to classifiers to avoid double-conversion
-                if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                # ⚡ Bolt Optimization: Pass the original PIL image directly to the classifiers
-                # instead of the NumPy array to prevent redundant double-conversions in the model inference backend
-                if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                else:
-                # Optimization: Passing the PIL Image directly avoids redundant NumPy-to-PIL conversion overhead
-                if model_option == "YOLOv8-cls (Fast & Modern)":
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                else:
-                    disease_class, confidence, probs = resnet_classifier.classify(
-                        image
-                    )
-                # Performance optimization: Pass the PIL image directly to the classifiers.
-                # PyTorch and YOLOv8 natively handle PIL images. Passing the NumPy array (img_np)
-                # causes the models to unnecessarily convert it back to a PIL image internally,
-                # wasting CPU cycles and memory.
-                if model_option == "YOLOv8-cls (Fast & Modern)":
-                    # Pass the original PIL Image to avoid redundant np->PIL conversion overhead
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                else:
-                    # Pass the original PIL Image to avoid redundant np->PIL conversion overhead
-                    # Bolt: YOLOv8 handles PIL Images gracefully. Passing the original PIL Image
-                    # instead of the NumPy array avoids redundant conversion overhead.
-                    disease_class, confidence, probs = yolo_classifier.classify(image)
-                else:
-                    # Bolt: ResNet classifier internally works with PIL Images. Passing the original
-                    # PIL Image directly avoids the overhead of converting the NumPy array back to PIL.
-                    # YOLOv8 handles numpy arrays directly and gracefully
-                    disease_class, confidence, probs = yolo_classifier.classify(img_np)
-                else:
-                    # Pass the original PIL `image` instead of `img_np` to avoid redundant NumPy-to-PIL conversion in `classify`
                     disease_class, confidence, probs = yolo_classifier.classify(image)
                 else:
                     disease_class, confidence, probs = resnet_classifier.classify(image)
@@ -331,31 +279,8 @@ def main():
         st.subheader("Recent Database Records")
         try:
             db = PhenotypeDatabase("phenotyping_results.db")
-            records = db.get_all_reports()
-             db = PhenotypeDatabase("phenotyping_results.db")
-             # Optimization: Only fetch the top 5 records to save memory/time
-             records = db.get_all_reports(limit=5)
-             if records:
-                 df_records = pd.DataFrame(records, columns=["ID", "Timestamp", "Disease Class", "Confidence", "Leaves Detected", "Traits JSON"])
-                 # Note: head(5) is now redundant but kept for safety if API changes back
-                 st.dataframe(df_records.drop(columns=["Traits JSON"]).head(5), hide_index=True)
-             else:
-                 st.write("No records yet.")
-            db = PhenotypeDatabase("phenotyping_results.db")
-            records = db.get_all_reports(limit=5)
-            # Re-use the already loaded db instance globally and use optimized backend query
-            records = db.get_recent_reports_summary(limit=5)
-            # Bolt Optimization: Fetch explicitly defined columns.
-            # Omit fetching large 'traits_json' from DB to reduce memory and I/O overhead.
-            records = db.get_recent_reports(limit=5)
             records = db.get_recent_reports(limit=5, include_traits=False)
             if records:
-                # Traits JSON is now excluded in the DB query to reduce memory usage
-                # ⚡ Bolt Optimization: Removed "Traits JSON" from DataFrame construction since
-                # the optimized database query no longer fetches it. Saves memory & computation
-                # from pandas DataFrame generation and dropping columns.
-                # ⚡ Bolt Optimization: The Traits JSON column was removed from the backend query
-                # meaning we no longer allocate a massive dataframe memory block just to drop it here
                 df_records = pd.DataFrame(
                     records,
                     columns=[
@@ -366,15 +291,6 @@ def main():
                         "Leaves Detected",
                     ],
                 )
-                # Remove redundant head(5) truncation as the database limits it for us
-                # Performance Optimization: `traits_json` is no longer fetched in the DB query, so no need to drop it here
-                st.dataframe(
-                    df_records.drop(columns=["Traits JSON"]).head(5), hide_index=True
-                )
-                st.dataframe(df_records.drop(columns=["Traits JSON"]), hide_index=True)
-                    ],
-                )
-                # Remove redundant head(5) truncation as the database limits it for us
                 st.dataframe(df_records, hide_index=True)
             else:
                 st.write("No records yet.")
