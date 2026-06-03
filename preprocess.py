@@ -38,6 +38,7 @@ def apply_clahe(gray_image, clip_limit=2.0, tile_grid_size=(8, 8)):
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     return clahe.apply(gray_image)
 
+
 def apply_color_clahe(image):
     """
     Applies CLAHE to the L channel of the image (Lab color space).
@@ -53,6 +54,7 @@ def apply_color_clahe(image):
     cl = clahe.apply(l)
     limg = cv2.merge((cl, a, b))
     return cv2.cvtColor(limg, cv2.COLOR_Lab2BGR)
+
 
 def extract_color_indices(image):
     """
@@ -108,7 +110,6 @@ def extract_edges_and_texture(gray_image):
     return edges, lbp, lbp_vis
 
 
-def segment_leaf(image):
 def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background using PlantCV.
@@ -127,7 +128,7 @@ def segment_leaf(image, exg=None):
 
     if exg is None:
         exg, exr, exg_vis, exr_vis = extract_color_indices(image)
-    
+
     # Threshold ExG using Otsu's method
     # Need to convert ExG to uint8 properly mapped to [0, 255]
     exg_mapped = cv2.normalize(exg, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
@@ -148,32 +149,42 @@ def segment_leaf(image, exg=None):
     if num_labels > 1:
         # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
+        largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+        final_mask = np.zeros_like(mask)
+        final_mask[labels == largest_label] = 255
+    else:
+        final_mask = mask
+
+    return final_mask
+
     # 1. Convert to a colorspace that isolates green (e.g. LAB)
-    a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
+    # a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
 
     # 2. Threshold the 'a' channel to separate leaf from background
     # Green plants appear dark in the 'a' channel.
     # We use an inverted auto threshold to get a white leaf on a black background
-    thresh = pcv.threshold.otsu(gray_img=a_channel, object_type='dark')
+    thresh = pcv.threshold.otsu(gray_img=a_channel, object_type="dark")
 
     # 3. Clean up the mask
     # Fills small holes within the leaf
     mask = pcv.fill(bin_img=thresh, size=50)
-    
+
     # Optional: clean up noise in the background
     # mask = pcv.fill_holes(bin_img=mask)
-    
+
     # 4. Find connected components (objects)
     # This acts like finding the largest contours
     labeled_mask, num_objects = pcv.create_labels(mask=mask)
-        
+
     # Isolate the largest object
     # If there are multiple parts we want the main leaf
     if num_objects > 1:
         # pcv.roi.multi doesn't easily return the largest by default
-        # But we can use standard OpenCV to pull out the largest blob 
+        # But we can use standard OpenCV to pull out the largest blob
         # from PlantCV's clean mask
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+            mask, connectivity=8
+        )
         largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
         final_mask = np.zeros_like(mask)
         final_mask[labels == largest_label] = 255
@@ -183,7 +194,6 @@ def segment_leaf(image, exg=None):
     return final_mask
 
 
-def extract_features(image, mask, lbp=None):
 def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
@@ -210,25 +220,17 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features["eccentricity"] = leaf_prop.eccentricity
     features["solidity"] = leaf_prop.solidity
     features["extent"] = leaf_prop.extent
-    features["aspect_ratio"] = leaf_prop.major_axis_length / (
-        leaf_prop.minor_axis_length + 1e-6
+    features["aspect_ratio"] = leaf_prop.axis_major_length / (
+        leaf_prop.axis_minor_length + 1e-6
     )
 
-        
-    leaf_prop = props[0] # assuming largest/only object
-    
-    features['area_px'] = leaf_prop.area
-    features['perimeter_px'] = leaf_prop.perimeter
-    features['eccentricity'] = leaf_prop.eccentricity
-    features['solidity'] = leaf_prop.solidity
-    features['extent'] = leaf_prop.extent
-    features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
-    
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Use direct boolean indexing instead of allocating a full-size intermediate array
+    # with cv2.bitwise_and. This reduces memory allocation overhead and significantly speeds up feature extraction.
+    bool_mask = mask > 0
+    R = image[:, :, 0][bool_mask]
+    G = image[:, :, 1][bool_mask]
+    B = image[:, :, 2][bool_mask]
 
     if len(R) > 0:
         features["mean_R"] = float(np.mean(R))
@@ -259,23 +261,22 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     else:
         features["lbp_mean"] = features["lbp_std"] = 0.0
 
-        features['lbp_mean'] = features['lbp_std'] = 0.0
-
     # --- Skeleton Analysis (PhenotyperCV) ---
     if PHENOTYPER_CV_AVAILABLE:
         try:
             from skimage.morphology import skeletonize
+
             skel_bool = skeletonize(binary_mask > 0)
             skel = (skel_bool * 255).astype(np.uint8)
 
             endpoints = phenotypercv.find_endpoints(skel)
             branchpoints = phenotypercv.find_branchpoints(skel)
 
-            features['num_endpoints'] = int(np.sum(endpoints > 0))
-            features['num_branchpoints'] = int(np.sum(branchpoints > 0))
+            features["num_endpoints"] = int(np.sum(endpoints > 0))
+            features["num_branchpoints"] = int(np.sum(branchpoints > 0))
         except ImportError:
             pass
-        
+
     return features
 
 
