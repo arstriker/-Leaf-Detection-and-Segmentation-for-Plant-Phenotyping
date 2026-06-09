@@ -64,3 +64,7 @@
 ## 2025-02-12 - SQLite SELECT * Overhead
 **Learning:** In `database.py`, using `SELECT *` to fetch all columns from `phenotyping_report` in `get_recent_reports()` caused the application to load the potentially large `traits_json` column into memory, even though the Streamlit UI immediately dropped it from the Pandas DataFrame because it wasn't needed for the summary display. This creates unnecessary disk I/O and memory usage.
 **Action:** Always explicitly specify required columns in SQLite queries (`SELECT id, timestamp...`) to avoid fetching large JSON payloads or BLOBs when they are not needed for the current view.
+
+## 2025-02-13 - Redundant Mask Allocations in Preprocessing
+**Learning:** In image preprocessing operations (like `extract_features` in `preprocess.py`), using `cv2.bitwise_and(image, image, mask=mask)` followed by repetitive boolean indexing (`mask > 0`) on each extracted channel unnecessarily allocates full-size intermediate NumPy arrays and iterates the boolean condition multiple times.
+**Action:** When extracting sub-regions of a NumPy array based on a binary mask, replace `cv2.bitwise_and` with direct NumPy boolean indexing (`valid_mask = mask > 0; pixels = image[valid_mask]`). This performs the check only once, avoiding the heavy memory allocation of masked arrays and significantly speeding up the loop CPU execution times.
