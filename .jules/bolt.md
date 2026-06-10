@@ -64,3 +64,7 @@
 ## 2025-02-12 - SQLite SELECT * Overhead
 **Learning:** In `database.py`, using `SELECT *` to fetch all columns from `phenotyping_report` in `get_recent_reports()` caused the application to load the potentially large `traits_json` column into memory, even though the Streamlit UI immediately dropped it from the Pandas DataFrame because it wasn't needed for the summary display. This creates unnecessary disk I/O and memory usage.
 **Action:** Always explicitly specify required columns in SQLite queries (`SELECT id, timestamp...`) to avoid fetching large JSON payloads or BLOBs when they are not needed for the current view.
+
+## 2024-05-18 - NumPy 2.0 Incompatibility with Offline Test Suites
+**Learning:** Installing generic image processing dependencies (like `plantcv` or `scipy`) in the offline testing environment can inadvertently pull in NumPy 2.x, which breaks many older scientific libraries and custom test environments due to missing legacy attributes.
+**Action:** When setting up local test environments, explicitly pin `"numpy<2.0.0"` to ensure compatibility with older CV and ML dependencies.
