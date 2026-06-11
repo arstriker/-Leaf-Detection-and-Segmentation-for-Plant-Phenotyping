@@ -38,6 +38,10 @@ sys.modules["skimage"] = mock_skimage
 sys.modules["skimage.feature"] = mock_skimage.feature
 sys.modules["skimage.measure"] = mock_skimage.measure
 
+plantcv_mock = MagicMock()
+sys.modules['plantcv'] = plantcv_mock
+sys.modules['plantcv.plantcv'] = plantcv_mock
+
 # Import the module to test
 import preprocess
 
@@ -72,6 +76,8 @@ def test_extract_features_valid_mask():
     mock_prop.extent = 0.8
     mock_prop.major_axis_length = 15
     mock_prop.minor_axis_length = 10
+    mock_prop.axis_major_length = 15
+    mock_prop.axis_minor_length = 10
 
     # Mock the return values for dependencies
     with patch("preprocess.label", return_value=np.ones((100, 100))), patch(
