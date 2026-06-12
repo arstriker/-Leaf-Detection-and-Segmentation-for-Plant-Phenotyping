@@ -108,7 +108,6 @@ def extract_edges_and_texture(gray_image):
     return edges, lbp, lbp_vis
 
 
-def segment_leaf(image):
 def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background using PlantCV.
@@ -146,34 +145,7 @@ def segment_leaf(image, exg=None):
     )
 
     if num_labels > 1:
-        # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
-    # 1. Convert to a colorspace that isolates green (e.g. LAB)
-    a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
-
-    # 2. Threshold the 'a' channel to separate leaf from background
-    # Green plants appear dark in the 'a' channel.
-    # We use an inverted auto threshold to get a white leaf on a black background
-    thresh = pcv.threshold.otsu(gray_img=a_channel, object_type='dark')
-
-    # 3. Clean up the mask
-    # Fills small holes within the leaf
-    mask = pcv.fill(bin_img=thresh, size=50)
-    
-    # Optional: clean up noise in the background
-    # mask = pcv.fill_holes(bin_img=mask)
-    
-    # 4. Find connected components (objects)
-    # This acts like finding the largest contours
-    labeled_mask, num_objects = pcv.create_labels(mask=mask)
-        
-    # Isolate the largest object
-    # If there are multiple parts we want the main leaf
-    if num_objects > 1:
-        # pcv.roi.multi doesn't easily return the largest by default
-        # But we can use standard OpenCV to pull out the largest blob 
-        # from PlantCV's clean mask
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
         largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
         final_mask = np.zeros_like(mask)
         final_mask[labels == largest_label] = 255
@@ -183,7 +155,6 @@ def segment_leaf(image, exg=None):
     return final_mask
 
 
-def extract_features(image, mask, lbp=None):
 def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
@@ -210,27 +181,23 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features["eccentricity"] = leaf_prop.eccentricity
     features["solidity"] = leaf_prop.solidity
     features["extent"] = leaf_prop.extent
-    features["aspect_ratio"] = leaf_prop.major_axis_length / (
-        leaf_prop.minor_axis_length + 1e-6
+    features["aspect_ratio"] = leaf_prop.axis_major_length / (
+        leaf_prop.axis_minor_length + 1e-6
     )
 
-        
-    leaf_prop = props[0] # assuming largest/only object
-    
-    features['area_px'] = leaf_prop.area
-    features['perimeter_px'] = leaf_prop.perimeter
-    features['eccentricity'] = leaf_prop.eccentricity
-    features['solidity'] = leaf_prop.solidity
-    features['extent'] = leaf_prop.extent
-    features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
-    
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Use direct boolean indexing to extract masked pixels
+    # instead of creating a full-size intermediate masked array with cv2.bitwise_and.
+    # This avoids allocating a massive array in memory and saves CPU cycles from the
+    # redundant cv2 mask multiplication operation and repeated mask > 0 evaluations.
+    valid_mask = mask > 0
+    masked_pixels = image[valid_mask]
 
-    if len(R) > 0:
+    if len(masked_pixels) > 0:
+        R = masked_pixels[:, 0]
+        G = masked_pixels[:, 1]
+        B = masked_pixels[:, 2]
+
         features["mean_R"] = float(np.mean(R))
         features["mean_G"] = float(np.mean(G))
         features["mean_B"] = float(np.mean(B))
@@ -242,9 +209,6 @@ def extract_features(image, mask, gray_image=None, lbp=None):
         features["std_R"] = features["std_G"] = features["std_B"] = 0.0
 
     # --- Texture Features (LBP) ---
-    if lbp is None:
-        gray_image, _ = grayscale_and_standardize(image)
-        _, lbp, _ = extract_edges_and_texture(gray_image)
     if gray_image is None or lbp is None:
         if gray_image is None:
             gray_image, _ = grayscale_and_standardize(image)
@@ -258,8 +222,6 @@ def extract_features(image, mask, gray_image=None, lbp=None):
         features["lbp_std"] = float(np.std(lbp_masked))
     else:
         features["lbp_mean"] = features["lbp_std"] = 0.0
-
-        features['lbp_mean'] = features['lbp_std'] = 0.0
 
     # --- Skeleton Analysis (PhenotyperCV) ---
     if PHENOTYPER_CV_AVAILABLE:
