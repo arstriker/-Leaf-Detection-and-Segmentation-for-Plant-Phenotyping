@@ -108,7 +108,6 @@ def extract_edges_and_texture(gray_image):
     return edges, lbp, lbp_vis
 
 
-def segment_leaf(image):
 def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background using PlantCV.
@@ -148,6 +147,13 @@ def segment_leaf(image, exg=None):
     if num_labels > 1:
         # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
+        largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+        final_mask = np.zeros_like(mask)
+        final_mask[labels == largest_label] = 255
+    else:
+        final_mask = mask
+
+    # PlantCV alternative logic (commented out to preserve fallback logic block)
     # 1. Convert to a colorspace that isolates green (e.g. LAB)
     a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
 
@@ -183,7 +189,6 @@ def segment_leaf(image, exg=None):
     return final_mask
 
 
-def extract_features(image, mask, lbp=None):
 def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
@@ -225,10 +230,15 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Use direct boolean indexing to extract masked pixels.
+    # 🎯 Why: Avoids allocating a full-sized intermediate image via cv2.bitwise_and,
+    # and prevents evaluating the boolean mask multiple times for each channel.
+    # 📊 Impact: Reduces memory allocation and CPU overhead during color feature extraction.
+    valid_mask = mask > 0
+    valid_pixels = image[valid_mask]
+    R = valid_pixels[:, 0]
+    G = valid_pixels[:, 1]
+    B = valid_pixels[:, 2]
 
     if len(R) > 0:
         features["mean_R"] = float(np.mean(R))
