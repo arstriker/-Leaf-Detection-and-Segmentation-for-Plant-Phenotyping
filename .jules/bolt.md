@@ -64,3 +64,6 @@
 ## 2025-02-12 - SQLite SELECT * Overhead
 **Learning:** In `database.py`, using `SELECT *` to fetch all columns from `phenotyping_report` in `get_recent_reports()` caused the application to load the potentially large `traits_json` column into memory, even though the Streamlit UI immediately dropped it from the Pandas DataFrame because it wasn't needed for the summary display. This creates unnecessary disk I/O and memory usage.
 **Action:** Always explicitly specify required columns in SQLite queries (`SELECT id, timestamp...`) to avoid fetching large JSON payloads or BLOBs when they are not needed for the current view.
+## 2024-06-15 - Memory Profiling of C-Extensions
+**Learning:** Standard Python memory profiling tools like `tracemalloc` do not accurately capture memory allocations made by C-extensions such as OpenCV (`cv2`). When `cv2.bitwise_and` was profiled with `tracemalloc`, it appeared to use less memory, but OS-level tracking with `psutil` revealed the true memory overhead of allocating the full-size intermediate array.
+**Action:** When optimizing and profiling operations involving C-bindings (like OpenCV or NumPy), use OS-level tools like `psutil` (`process.memory_info().rss`) to measure the actual memory footprint.
