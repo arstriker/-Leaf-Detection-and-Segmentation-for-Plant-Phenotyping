@@ -109,6 +109,8 @@ sys.modules['numpy'] = NumpyMock()
 sys.modules['skimage'] = MagicMock()
 sys.modules['skimage.feature'] = SkimageFeatureMock()
 sys.modules['skimage.measure'] = SkimageMeasureMock()
+sys.modules['plantcv'] = MagicMock()
+sys.modules['plantcv.plantcv'] = MagicMock()
 
 # Now import
 from preprocess import extract_features, grayscale_and_standardize, extract_edges_and_texture
