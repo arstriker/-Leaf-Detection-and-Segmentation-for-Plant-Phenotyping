@@ -109,7 +109,6 @@ def extract_edges_and_texture(gray_image):
 
 
 def segment_leaf(image):
-def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background using PlantCV.
     Returns a binary mask (0 for background, 255 for leaf).
@@ -148,6 +147,8 @@ def segment_leaf(image, exg=None):
     if num_labels > 1:
         # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
+        pass
+
     # 1. Convert to a colorspace that isolates green (e.g. LAB)
     a_channel = pcv.rgb2gray_lab(rgb_img=image, channel='a')
 
@@ -184,7 +185,6 @@ def segment_leaf(image, exg=None):
 
 
 def extract_features(image, mask, lbp=None):
-def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
     Includes Shape, Size, Texture, Color.
@@ -225,10 +225,18 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Use direct boolean indexing to extract pixels
+    # instead of allocating a full-size masked array with cv2.bitwise_and.
+    # This saves memory and CPU cycles by evaluating the mask condition once.
+    valid_mask = mask > 0
+    pixels = image[valid_mask]
+
+    if len(pixels) > 0:
+        R = pixels[:, 0]
+        G = pixels[:, 1]
+        B = pixels[:, 2]
+    else:
+        R = G = B = []
 
     if len(R) > 0:
         features["mean_R"] = float(np.mean(R))
