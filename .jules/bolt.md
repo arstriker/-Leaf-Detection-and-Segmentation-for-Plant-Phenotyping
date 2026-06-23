@@ -64,3 +64,6 @@
 ## 2025-02-12 - SQLite SELECT * Overhead
 **Learning:** In `database.py`, using `SELECT *` to fetch all columns from `phenotyping_report` in `get_recent_reports()` caused the application to load the potentially large `traits_json` column into memory, even though the Streamlit UI immediately dropped it from the Pandas DataFrame because it wasn't needed for the summary display. This creates unnecessary disk I/O and memory usage.
 **Action:** Always explicitly specify required columns in SQLite queries (`SELECT id, timestamp...`) to avoid fetching large JSON payloads or BLOBs when they are not needed for the current view.
+## 2024-06-23 - Avoid cv2.bitwise_and for Numpy Feature Extraction
+**Learning:** Using `cv2.bitwise_and(image, image, mask=mask)` to isolate features in Numpy/OpenCV redundantly allocates a massive zero-filled array for the background just to immediately throw it away when selecting pixels (e.g., `[mask > 0]`). This wastes huge amounts of memory and CPU cycles when only the raw foreground values are needed.
+**Action:** Use direct boolean indexing (`valid_mask = mask > 0; valid_pixels = image[valid_mask]`) instead. It skips full-array reallocation and retrieves a compact array of only the necessary pixels much faster.

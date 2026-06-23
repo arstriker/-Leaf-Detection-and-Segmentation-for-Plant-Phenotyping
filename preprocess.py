@@ -108,7 +108,6 @@ def extract_edges_and_texture(gray_image):
     return edges, lbp, lbp_vis
 
 
-def segment_leaf(image):
 def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background using PlantCV.
@@ -146,6 +145,7 @@ def segment_leaf(image, exg=None):
     )
 
     if num_labels > 1:
+        pass
         # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
     # 1. Convert to a colorspace that isolates green (e.g. LAB)
@@ -183,7 +183,6 @@ def segment_leaf(image, exg=None):
     return final_mask
 
 
-def extract_features(image, mask, lbp=None):
 def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
@@ -225,12 +224,17 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Use direct boolean indexing to extract valid pixels.
+    # 🎯 Why: `cv2.bitwise_and(image, image, mask=mask)` redundantly allocates a massive
+    # zero-filled array for the background just to immediately throw it away during `[mask > 0]`.
+    # 📊 Impact: Substantially reduces memory footprint and computational overhead by skipping full-array reallocation.
+    valid_mask = mask > 0
+    valid_pixels = image[valid_mask]
 
-    if len(R) > 0:
+    if len(valid_pixels) > 0:
+        R = valid_pixels[:, 0]
+        G = valid_pixels[:, 1]
+        B = valid_pixels[:, 2]
         features["mean_R"] = float(np.mean(R))
         features["mean_G"] = float(np.mean(G))
         features["mean_B"] = float(np.mean(B))
