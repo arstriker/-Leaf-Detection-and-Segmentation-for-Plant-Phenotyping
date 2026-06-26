@@ -108,7 +108,6 @@ def extract_edges_and_texture(gray_image):
     return edges, lbp, lbp_vis
 
 
-def segment_leaf(image):
 def segment_leaf(image, exg=None):
     """
     Segments the leaf from the background using PlantCV.
@@ -146,6 +145,7 @@ def segment_leaf(image, exg=None):
     )
 
     if num_labels > 1:
+        pass
         # sizes are in the last column of stats
         # The 0th label is the background. Extract the max size among the others.
     # 1. Convert to a colorspace that isolates green (e.g. LAB)
@@ -183,7 +183,6 @@ def segment_leaf(image, exg=None):
     return final_mask
 
 
-def extract_features(image, mask, lbp=None):
 def extract_features(image, mask, gray_image=None, lbp=None):
     """
     Extracts key phenotypic traits from the segmented leaf.
@@ -215,20 +214,20 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     )
 
         
-    leaf_prop = props[0] # assuming largest/only object
     
-    features['area_px'] = leaf_prop.area
-    features['perimeter_px'] = leaf_prop.perimeter
-    features['eccentricity'] = leaf_prop.eccentricity
-    features['solidity'] = leaf_prop.solidity
-    features['extent'] = leaf_prop.extent
-    features['aspect_ratio'] = leaf_prop.axis_major_length / (leaf_prop.axis_minor_length + 1e-6)
     
     # --- Color Features (only within the mask) ---
-    img_masked = cv2.bitwise_and(image, image, mask=mask)
-    R = img_masked[:, :, 0][mask > 0]
-    G = img_masked[:, :, 1][mask > 0]
-    B = img_masked[:, :, 2][mask > 0]
+    # ⚡ Bolt Optimization: Use direct boolean indexing to avoid evaluating mask>0 repeatedly
+    # and to prevent allocating a full-size intermediate array with cv2.bitwise_and.
+    valid_mask = mask > 0
+    valid_pixels = image[valid_mask]
+
+    if len(valid_pixels) > 0:
+        R = valid_pixels[:, 0]
+        G = valid_pixels[:, 1]
+        B = valid_pixels[:, 2]
+    else:
+        R = G = B = np.array([])
 
     if len(R) > 0:
         features["mean_R"] = float(np.mean(R))
@@ -259,7 +258,6 @@ def extract_features(image, mask, gray_image=None, lbp=None):
     else:
         features["lbp_mean"] = features["lbp_std"] = 0.0
 
-        features['lbp_mean'] = features['lbp_std'] = 0.0
 
     # --- Skeleton Analysis (PhenotyperCV) ---
     if PHENOTYPER_CV_AVAILABLE:
